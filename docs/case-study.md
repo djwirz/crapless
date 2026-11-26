@@ -37,15 +37,15 @@ Against [spec §10](spec.md#10-acceptance-criteria-v1-done-depth-3):
 
 **Known limits.** Anyone with a table's link can sit down under any name. A player could hold up the shooter by changing a bet again and again. A determined stranger could use up the server's connections. Nothing has been tried with a screen reader. Before sharing it beyond friends, ADR 0003 asks for a privacy note, a decision on an age notice and a fresh look at the law.
 
-## How AI was used
-Claude Code wrote the code and nearly all the docs. Dan directed it and made the decisions.
+## How it was built
+AI-assisted with Claude Code. Dan owned the design, decisions and review.
 
 - **Spec first,** with the first ADRs, before any code.
 - **One thin slice per pull request,** each planned and approved before code, then merged by Dan. Two extra pull requests, for the browser GIF, were built from a request without a separate plan.
 - **Dan's choices are on record** in the spec: the host, the front end, the portrait layout and casino look, a players panel with dots for others' bets, counts in the logs and on a public page.
 - **Dan judged the feel** by trying it.
 
-## Where AI was wrong
+## What went wrong
 Gathered from the pull requests, grouped by how each was caught.
 
 **Caught only by playing it or looking at it.** Tests written from the same assumptions passed.

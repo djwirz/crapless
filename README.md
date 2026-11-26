@@ -6,6 +6,10 @@ A crapless craps table you can open on your phone and play with friends: join by
 
 Two phones at one table, played by a script against the real server: Ana invites, Bo joins, and each takes a turn with the dice. The dice are fixed for the recording; in play the server rolls them. Re-recorded by `npm run demo:gif --prefix web`.
 
+![Two phone screens side by side: Bo switches pedantic mode on, both are told, Bo puts 4 chips on the 3, then opens How to play at the section on pedantic mode](docs/pedantic.gif)
+
+**Pedantic mode**, for a player who wants to bet less than 8 on the 3: switch it on, the whole table is told, and Place bets on 2, 3, 11 and 12 can start at 4. Re-recorded on its own by `npm run demo:gif --prefix web -- pedantic`.
+
 **Play it:** https://crapless.onrender.com. The first visit after a quiet spell can take about a minute while the server wakes, and the table starts over.
 
 **Status:** v1 is built: up to eight players share a table by link. [Case study](docs/case-study.md) · [runbook](docs/runbook.md) · [stats](https://crapless.onrender.com/stats). Design: [docs/spec.md](docs/spec.md), [docs/protocol.md](docs/protocol.md) and [docs/adr/](docs/adr/).
@@ -45,7 +49,7 @@ cd web && npx playwright install chromium
 npm run e2e --prefix web
 ```
 
-To re-record the GIF after the page changes (needs Docker):
+To re-record both GIFs after the page changes (needs Docker):
 
 ```bash
 npm run demo:gif --prefix web

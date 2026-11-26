@@ -7,6 +7,18 @@ const SIZE = { width: 390, height: 640 };
 // The two recordings, and how long after the first the second phone appears.
 const DEMO = resolve(import.meta.dirname, "../test-results/demo");
 
+/** Keep both phones' videos, and when the second one began, for scripts/demo-gif.ts. */
+async function saveRecordings(first: Seat, second: Seat): Promise<void> {
+  const videos = [first.page.video()!, second.page.video()!];
+  await first.context.close();
+  await second.context.close();
+  mkdirSync(DEMO, { recursive: true });
+  await videos[0]!.saveAs(resolve(DEMO, "ana.webm"));
+  await videos[1]!.saveAs(resolve(DEMO, "bo.webm"));
+  const joined = (second.opened - first.opened) / 1000;
+  writeFileSync(resolve(DEMO, "timing.json"), JSON.stringify({ joined }));
+}
+
 interface Seat {
   context: BrowserContext;
   page: Page;
@@ -15,7 +27,14 @@ interface Seat {
   opened: number;
 }
 
-async function sit(browser: Browser, name: string, link = "/", record = false): Promise<Seat> {
+/** `typed` shows the name being typed, for a recording that is about joining. */
+async function sit(
+  browser: Browser,
+  name: string,
+  link = "/",
+  record = false,
+  typed = record,
+): Promise<Seat> {
   const context = await browser.newContext({
     viewport: SIZE,
     isMobile: true,
@@ -30,7 +49,7 @@ async function sit(browser: Browser, name: string, link = "/", record = false): 
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(link);
   const field = page.getByRole("textbox", { name: "Your name" });
-  if (record) {
+  if (typed) {
     await page.waitForTimeout(900);
     await field.pressSequentially(name, { delay: 180 });
     await page.waitForTimeout(500);
@@ -146,15 +165,10 @@ test("two players, a shooter turn each", async ({ browser }) => {
   await pause(2_500);
 
   expect([...ana.errors, ...bo.errors]).toEqual([]);
-  const videos = [a.video(), b.video()];
-  await ana.context.close();
-  await bo.context.close();
-  if (recording) {
-    mkdirSync(DEMO, { recursive: true });
-    await videos[0]!.saveAs(resolve(DEMO, "ana.webm"));
-    await videos[1]!.saveAs(resolve(DEMO, "bo.webm"));
-    const joined = (bo.opened - ana.opened) / 1000;
-    writeFileSync(resolve(DEMO, "timing.json"), JSON.stringify({ joined }));
+  if (recording) await saveRecordings(ana, bo);
+  else {
+    await ana.context.close();
+    await bo.context.close();
   }
 });
 
@@ -187,39 +201,67 @@ test("a player with too few chips is offered a free refill", async ({ browser })
 });
 
 test("pedantic mode is told to the table and lowers the smallest bet", async ({ browser }) => {
-  const ana = await sit(browser, "Ana");
-  const bo = await sit(browser, "Bo", ana.page.url());
+  test.setTimeout(60_000);
+  // Its recording starts at the table: joining is what the other one shows.
+  const ana = await sit(browser, "Ana", "/", recording, false);
+  const bo = await sit(browser, "Bo", ana.page.url(), recording, false);
   const [a, b] = [ana.page, bo.page];
+  const pause = (ms: number) => (recording ? a.waitForTimeout(ms) : Promise.resolve());
   const players = (page: Page) => page.getByRole("button", { name: "Players" });
   const panel = (page: Page) => page.getByRole("dialog", { name: "Players" });
   const toggle = panel(b).getByRole("button", { name: /^Pedantic mode/ });
   const back = panel(b).getByRole("button", { name: "Back to the table" });
 
+  await pause(1_500);
   await players(b).tap();
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await pause(1_800);
   await toggle.tap();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   for (const page of [a, b]) {
     await expect(page.getByText("Pedantic mode enabled for Bo")).toBeVisible();
   }
   // Gone by itself, without a tap.
-  await expect(a.getByText("Pedantic mode enabled for Bo")).toBeHidden({ timeout: 8_000 });
+  await pause(2_000);
   await back.tap();
+  await expect(a.getByText("Pedantic mode enabled for Bo")).toBeHidden({ timeout: 8_000 });
 
   const three = b.getByRole("button", { name: "Add chips to Place 3", exact: true });
   await b.getByRole("group", { name: "Chip" }).getByRole("button", { name: "1", exact: true }).tap();
+  await pause(900);
   await three.tap();
   await expect(b.getByTestId("amount-place-3")).toHaveText("4");
+  await pause(2_000);
 
-  await players(b).tap();
-  await toggle.tap();
-  await expect(a.getByText("Pedantic mode disabled for Bo")).toBeVisible();
-  await back.tap();
-  await expect(b.getByTestId("amount-place-3")).toHaveText("4");
+  // Switching off leaves the small bet up. The recording skips this and goes on to the rules.
+  if (!recording) {
+    await players(b).tap();
+    await toggle.tap();
+    await expect(a.getByText("Pedantic mode disabled for Bo")).toBeVisible();
+    await back.tap();
+    await expect(b.getByTestId("amount-place-3")).toHaveText("4");
+  }
+
+  // It ends on what it all means.
+  await b.getByRole("button", { name: "How to play" }).tap();
+  const rules = b.getByRole("dialog", { name: "How to play" });
+  const heading = rules.getByRole("heading", { name: "Pedantic mode" });
+  await pause(1_500);
+  await heading.evaluate(
+    (element, smooth) =>
+      element.scrollIntoView({ behavior: smooth ? "smooth" : "instant", block: "start" }),
+    recording,
+  );
+  await expect(heading).toBeInViewport();
+  await expect(rules.getByText("Switch it on from the top button")).toBeInViewport({ ratio: 1 });
+  await pause(7_000);
 
   expect([...ana.errors, ...bo.errors]).toEqual([]);
-  await ana.context.close();
-  await bo.context.close();
+  if (recording) await saveRecordings(ana, bo);
+  else {
+    await ana.context.close();
+    await bo.context.close();
+  }
 });
 
 test("a full table's players panel can be scrolled to its first player", async ({ browser }) => {

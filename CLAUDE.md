@@ -17,6 +17,7 @@ All five slices of spec §9 are built and live at https://crapless.onrender.com 
 - When the spec and the code disagree, stop and ask. If the decision changes, update the spec in the same PR.
 - **Fun first.** This is a change of pace. Don't add a tool or feature to show a skill.
 - The look and feel is judged by Dan on a real phone, not from a screenshot alone.
+- **The README GIFs stay current.** A change to what is on screen re-records both in the same PR (`npm run demo:gif --prefix web`, needs Docker), and you look at them before committing. The browser tests fail when a screen a GIF shows has changed (`web/e2e/looks/`). Never edit those files by hand. The check only sees the screens the GIFs visit, and not changes made from script alone (such as timing), so re-record for any visual change, not just when it fails. A new feature that is seen: ask whether a GIF should show it.
 - Built with Claude Code. The case study says so once, briefly, under "How it was built"; mistakes go under "What went wrong" without attributing them to the AI. Note real mistakes in PR descriptions.
 
 ## Constraints

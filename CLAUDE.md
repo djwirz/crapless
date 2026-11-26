@@ -3,9 +3,11 @@
 A phone-first web game of crapless craps for a few friends at a shared table, with a rotating shooter and play money. A for-fun project, built properly. Use they/them for Dan.
 
 ## Status
-Planned and parked, to be picked up when Dan feels like it. `docs/spec.md` and ADRs 0001–0005 are in PR #1. The ADRs say `Accepted`, and merging accepts them. The judgment behind the project is in `docs/artifact-spec.md`.
+Slice 1 of spec §9, the rules engine in `src/crapless/engine/`, is built, with its tests and CI. There is no server or UI yet. The judgment behind the project is in `docs/artifact-spec.md`.
 
-**To pick up:** review and merge PR #1, settle the open questions in spec §11 that slice 1 needs, then start slice 1 (spec §9) in plan mode.
+**Next:** slice 2 (one player on a phone), in plan mode, after settling spec §11 Q3, Q5 and Q6.
+
+**Checks:** `uv run ruff check`, `uv run ruff format --check`, `uv run mypy`, `uv run pytest`.
 
 ## How we work
 - Pull requests only. Never push to `main`. Merged PRs are the project's record.
@@ -30,7 +32,7 @@ Planned and parked, to be picked up when Dan feels like it. `docs/spec.md` and A
 
 ## Invariants (spec §5): never break these
 1. **The server decides:** dice, bets and bankrolls change only on the server.
-2. **Chips add up:** every chip is in a bankroll or on the table, except what the house pays or collects on a roll.
+2. **Chips add up:** every chip is in a bankroll or on the table. The total changes only by what the house pays or collects on a roll, and by chips arriving with a new seat or a refill, or leaving with a player.
 3. **Settled once:** each roll settles each bet at most once, even with retries and reconnects.
 4. **Right pay:** every bet pays what the rules table says.
 5. **One shooter:** a table with players has exactly one shooter, and only the shooter rolls.

@@ -1,6 +1,6 @@
 # Crapless: spec
 
-Status: Draft for PR #1 · Date: 2026-11-26 · Owner: Dan
+Status: Accepted in PR #1, updated by each slice · Date: 2026-11-26 · Owner: Dan
 
 ## 1. Problem
 Crapless craps is a craps variant with few games to play it in. This one is a table for a handful of friends: open a link on a phone, take a seat, bet, and take your turn with the dice. It should feel like playing craps without copying a whole casino.
@@ -33,16 +33,27 @@ Sources: [Maryland standard rules for crapless craps, v1.1](https://www.mdgaming
 | Place 5 or 9 | the number before a 7 | 7 to 5 | 4% |
 | Place 6 or 8 | the number before a 7 | 7 to 6 | about 1.5% |
 
+**Chips and limits** (the limits and payouts are table settings):
+- Chips are whole numbers. A bet must be a multiple that pays out evenly (Place 6 or 8 in sixes), or it is rejected with a reason. Nothing is rounded (ADR 0006).
+- Pass, Come and Place bets: minimum 5, maximum 500. Where 5 is not a valid multiple, the effective minimum is the next one up (6 on Place 6, 8 on Place 3).
+- Odds: up to 3 times the flat bet, on every number.
+- A seat starts with 1000 chips. A free refill tops the bankroll back up to that.
+- Place pays default to the table above. Some casinos pay 2 and 12, or 3 and 11, differently. Odds always pay true odds.
+
 **Table flow:**
 - Place bets are off on the come-out unless the player turns them on.
+- A Place bet turned on stays on until it is removed or lost. A winning Place bet is paid and stays up.
+- Pass bets are made on the come-out. Come bets are made while there is a point.
 - Pass and Come bets can't be removed or reduced once they have a point. Odds and Place bets can, before the roll.
-- The shooter makes a Pass bet and keeps the dice until a seven-out, or chooses to pass them. The dice go to the next player to the left.
+- Come odds are off on a come-out roll unless the table setting turns them on. The Come bet itself still wins or loses, and odds that were off come back to the player. Neither rules page above says either way.
+- The shooter needs a Pass bet to roll a come-out, and keeps the dice until a seven-out or chooses to pass them between rolls. The point and every bet stay. The dice go to the next player to the left.
+- A player can leave unless they have a Pass or Come bet on a point. Their other bets leave with their bankroll.
 
 **Next after v1:** field (2, 3, 4, 9, 10, 11, 12; 1 to 1, and 2 to 1 on 2 and 12) and hardways (4/10: 7 to 1; 6/8: 9 to 1), then buy bets.
 
 ## 5. Invariants and failure modes
 1. **The server decides:** dice, bets and bankrolls change only on the server.
-2. **Chips add up:** every chip is in a bankroll or on the table, except what the house pays or collects on a roll.
+2. **Chips add up:** every chip is in a bankroll or on the table. The total changes only by what the house pays or collects on a roll, and by chips arriving with a new seat or a refill, or leaving with a player.
 3. **Settled once:** each roll settles each bet at most once, even with retries and reconnects.
 4. **Right pay:** every bet pays what §4 says.
 5. **One shooter:** a table with players has exactly one shooter, and only the shooter rolls.
@@ -64,7 +75,7 @@ Sources: [Maryland standard rules for crapless craps, v1.1](https://www.mdgaming
    tables and seats ─▶ rules engine (pure Python, no I/O)
    dice from the `secrets` module
 ```
-- **Rules engine:** takes a table state and an action or a roll, returns the new state and the settlements. No I/O and no randomness inside it, so every case can be tested.
+- **Rules engine:** takes a table state and an action or a roll, returns the new state and the settlements. No I/O and no randomness inside it, so every case can be tested (ADR 0007).
 - **Server:** one process holding tables in memory, one action at a time per table (ADR 0002).
 - **Protocol:** versioned and written down in `docs/protocol.md`, so a native app can later be a second client.
 - **Front end:** draws the state and sends intents. It holds no rules beyond what it needs to grey out illegal bets, and the server checks everything again.
@@ -97,11 +108,10 @@ A table of one is solo play, so there's no separate solo mode.
 5. ADRs for every expensive decision, and each PR says how AI was used and what it got wrong.
 
 ## 11. Open questions
-1. **Chip units and rounding** (before slice 1). Several pays are fractions. Recommendation: whole-number chips, with each bet required to be a multiple that pays out evenly (Place 6 in sixes).
-2. **Table limits** (before slice 1). Minimum bet, maximum, and the odds multiple. Recommendation: one modest odds multiple on every number.
-3. **State across restarts** (before slice 2). Memory only, or saved? Recommendation: save bankrolls and table state to SQLite after each roll if the host keeps a disk; otherwise accept the loss for v1 and say so.
-4. **Come odds on a come-out roll** (before slice 1). On or off by default? Not found in the rules pages read. Check, then make it a setting.
-5. **Front-end approach** (before slice 2). React, Svelte or plain TypeScript, and DOM, SVG or canvas for the table. Recommendation: React with SVG, unless a quick spike shows the dice throw needs canvas.
-6. **Host** (before slice 2). One small instance that supports WebSockets. Check current free limits.
-7. **Betting window** (before slice 4). Does the shooter roll whenever ready, or after a short timer or everyone's "ready"? Recommendation: the shooter rolls when ready, with a brief pause after the last bet.
-8. **Table size** (before slice 4). Recommendation: up to about eight.
+Numbers are kept as questions are settled. Q1, Q2 and Q4 are settled in §4.
+
+- **Q3.** **State across restarts** (before slice 2). Memory only, or saved? Recommendation: save bankrolls and table state to SQLite after each roll if the host keeps a disk; otherwise accept the loss for v1 and say so.
+- **Q5.** **Front-end approach** (before slice 2). React, Svelte or plain TypeScript, and DOM, SVG or canvas for the table. Recommendation: React with SVG, unless a quick spike shows the dice throw needs canvas.
+- **Q6.** **Host** (before slice 2). One small instance that supports WebSockets. Check current free limits.
+- **Q7.** **Betting window** (before slice 4). Does the shooter roll whenever ready, or after a short timer or everyone's "ready"? Recommendation: the shooter rolls when ready, with a brief pause after the last bet.
+- **Q8.** **Table size** (before slice 4). Recommendation: up to about eight.

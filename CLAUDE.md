@@ -17,7 +17,7 @@ All five slices of spec §9 are built and live at https://crapless.onrender.com 
 - When the spec and the code disagree, stop and ask. If the decision changes, update the spec in the same PR.
 - **Fun first.** This is a change of pace. Don't add a tool or feature to show a skill.
 - The look and feel is judged by Dan on a real phone, not from a screenshot alone.
-- Built with Claude Code in the open: the case study gets a section on how AI was used and where it was wrong, so note real mistakes in PR descriptions.
+- Built with Claude Code. The case study says so once, briefly, under "How it was built"; mistakes go under "What went wrong" without attributing them to the AI. Note real mistakes in PR descriptions.
 
 ## Constraints
 - **Play money only (ADR 0003).** Never sell chips or anything else, never award prizes or anything redeemable, no ads, no links to real-money gambling, no sweepstakes mechanics.

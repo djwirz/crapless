@@ -3,11 +3,11 @@
 A phone-first web game of crapless craps for a few friends at a shared table, with a rotating shooter and play money. A for-fun project, built properly. Use they/them for Dan.
 
 ## Status
-Slice 1 of spec §9, the rules engine in `src/crapless/engine/`, is built, with its tests and CI. There is no server or UI yet. The judgment behind the project is in `docs/artifact-spec.md`.
+Slices 1 and 2 of spec §9 are built: the rules engine (`src/crapless/engine/`), the server (`src/crapless/server/`, protocol in `docs/protocol.md`) and a plain page for one player (`web/`). Deploying needs the Render service in `render.yaml` to be connected, which only Dan can do. The judgment behind the project is in `docs/artifact-spec.md`.
 
-**Next:** slice 2 (one player on a phone), in plan mode, after settling spec §11 Q3, Q5 and Q6.
+**Next:** slice 3 (look and feel), in plan mode.
 
-**Checks:** `uv run ruff check`, `uv run ruff format --check`, `uv run mypy`, `uv run pytest`.
+**Checks:** `uv run ruff check`, `uv run ruff format --check`, `uv run mypy`, `uv run pytest`; in `web/`, `npm run typecheck`, `npm test`, `npm run build`. After changing a protocol message, regenerate (see `docs/protocol.md`).
 
 ## How we work
 - Pull requests only. Never push to `main`. Merged PRs are the project's record.

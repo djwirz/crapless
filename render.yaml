@@ -1,0 +1,16 @@
+# Render Blueprint (ADR 0009). One free instance: tables live in its memory.
+services:
+  - type: web
+    name: crapless
+    runtime: python
+    plan: free
+    branch: main
+    autoDeployTrigger: checksPass
+    buildCommand: npm ci --include=dev --prefix web && npm run build --prefix web && uv sync --locked --no-dev
+    startCommand: uv run --no-sync uvicorn crapless.server.app:create_app --factory --host 0.0.0.0 --port $PORT --ws-max-size 4096
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: UV_VERSION
+        value: "0.13.9"

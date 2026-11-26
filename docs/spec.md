@@ -64,7 +64,7 @@ Sources: [Maryland standard rules for crapless craps, v1.1](https://www.mdgaming
 | The shooter disappears | After a short wait the dice pass to the left. |
 | A message is sent twice | The second copy changes nothing. |
 | A bet arrives after the roll | Rejected, with the reason shown. |
-| The server restarts | See §11 Q3. |
+| The server restarts | Tables are held in memory only, so they start over, and the page says so (ADR 0009). |
 
 ## 6. Architecture
 ```
@@ -78,7 +78,8 @@ Sources: [Maryland standard rules for crapless craps, v1.1](https://www.mdgaming
 - **Rules engine:** takes a table state and an action or a roll, returns the new state and the settlements. No I/O and no randomness inside it, so every case can be tested (ADR 0007).
 - **Server:** one process holding tables in memory, one action at a time per table (ADR 0002).
 - **Protocol:** versioned and written down in `docs/protocol.md`, so a native app can later be a second client.
-- **Front end:** draws the state and sends intents. It holds no rules beyond what it needs to grey out illegal bets, and the server checks everything again.
+- **Front end:** React and TypeScript built with Vite, with an SVG table from slice 3. It draws the state and sends intents. The server says what may be bet on each spot, so the page holds no rules, and the server checks everything again.
+- **Host:** Render's free tier, deployed from `main` after CI passes (ADR 0009).
 
 ## 7. Observability
 Structured logs with table, seat and roll ids. Counts of open tables, rolls, rejected messages, disconnects and errors. No names in logs above debug level.
@@ -108,10 +109,7 @@ A table of one is solo play, so there's no separate solo mode.
 5. ADRs for every expensive decision, and each PR says how AI was used and what it got wrong.
 
 ## 11. Open questions
-Numbers are kept as questions are settled. Q1, Q2 and Q4 are settled in §4.
+Numbers are kept as questions are settled. Q1, Q2 and Q4 are settled in §4; Q3, Q5 and Q6 in §5 and §6.
 
-- **Q3.** **State across restarts** (before slice 2). Memory only, or saved? Recommendation: save bankrolls and table state to SQLite after each roll if the host keeps a disk; otherwise accept the loss for v1 and say so.
-- **Q5.** **Front-end approach** (before slice 2). React, Svelte or plain TypeScript, and DOM, SVG or canvas for the table. Recommendation: React with SVG, unless a quick spike shows the dice throw needs canvas.
-- **Q6.** **Host** (before slice 2). One small instance that supports WebSockets. Check current free limits.
 - **Q7.** **Betting window** (before slice 4). Does the shooter roll whenever ready, or after a short timer or everyone's "ready"? Recommendation: the shooter rolls when ready, with a brief pause after the last bet.
 - **Q8.** **Table size** (before slice 4). Recommendation: up to about eight.

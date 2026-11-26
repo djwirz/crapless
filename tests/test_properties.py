@@ -28,6 +28,7 @@ from crapless.engine import (
     come_odds,
     new_table,
     place,
+    spot_options,
 )
 
 PLAYERS = st.sampled_from(["ana", "bo", "cy", "dee"])
@@ -201,6 +202,35 @@ class Table(RuleBasedStateMachine):
             assert self.state.shooter in players
         else:
             assert self.state.shooter is None
+
+    @invariant()
+    def offered_amounts_are_the_accepted_ones(self) -> None:
+        """`spot_options` and `apply` agree, at both ends of each range and just outside."""
+        state = self.state
+        for seat in state.seats:
+            held = [b for p, b in state.bets if p == seat.player]
+            for spot in {PASS, PASS_ODDS, COME, place(3), place(6), come(8), come_odds(8), *held}:
+                options = spot_options(state, seat.player, spot)
+                low, high, step = options.low, options.high, options.step
+
+                def accepted(amount: int, spot: Bet = spot, player: str = seat.player) -> bool:
+                    try:
+                        apply(state, SetBet(player, spot, amount, state.roll_number))
+                    except Rejected:
+                        return False
+                    return True
+
+                if options.amount:
+                    assert accepted(0) is options.removable
+                if low is None or high is None:
+                    for amount in (step, step * 5, 600):
+                        assert amount == options.amount or not accepted(amount)
+                    continue
+                assert accepted(low) and accepted(high)
+                for outside in (low - step, high + step):
+                    assert outside <= 0 or outside == options.amount or not accepted(outside)
+                if step > 1:
+                    assert low + 1 == options.amount or not accepted(low + 1)
 
     @invariant()
     def bets_make_sense(self) -> None:

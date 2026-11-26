@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "A phone-first crapless craps table for a few friends. Play money only."
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "fastapi>=0.165.0",
+    "pydantic>=2.14.4",
+    "uvicorn[standard]>=0.54.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.13.9,<0.14"]
@@ -12,6 +16,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.16.2",
     "hypothesis",
     "mypy",
     "pytest",
@@ -26,7 +31,7 @@ select = ["B", "E", "F", "I", "RUF", "SIM", "UP", "W"]
 
 [tool.mypy]
 strict = true
-files = ["src", "tests"]
+files = ["src", "tests", "scripts"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

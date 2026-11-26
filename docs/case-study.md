@@ -29,7 +29,7 @@ Against [spec §10](spec.md#10-acceptance-criteria-v1-done-depth-3):
 
 | Criterion | Standing |
 |---|---|
-| A link opens the table on a current iPhone **and** Android phone, no install or sign-up | **Not confirmed on both.** The look and the shared table were approved after trying them, but which phones and browsers was not recorded. Automated checks use desktop Chromium emulating a phone. |
+| A link opens the table on a current iPhone **and** Android phone, no install or sign-up | **Half met.** Dan has tried the table on an iPhone. No Android phone has been tried. Automated checks use desktop Chromium emulating a phone. |
 | Several players share a table, the dice rotate, a dropped player returns to their chips | Met, by the tests. |
 | Exact-math and property tests in CI | Met. |
 | Deployed from `main`, with logs that can explain a disputed roll | Met. The runbook has not been tried in Render's dashboard. |

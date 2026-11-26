@@ -84,6 +84,7 @@ Sources: [Maryland standard rules for crapless craps, v1.1](https://www.mdgaming
 - **Protocol:** versioned and written down in `docs/protocol.md`, so a native app can later be a second client.
 - **Front end:** React and TypeScript built with Vite, with an SVG table from slice 3. It draws the state and sends intents. The server says what may be bet on each spot, so the page holds no rules, and the server checks everything again.
 - **Table:** one portrait screen with nothing to scroll. Pick a chip and tap a spot; a − switch takes chips off. On a come-out the Come bar switches Place bets on or off. Tap Roll or flick up on the dice. The bankroll and chips change only when the dice land, wins and losses are written out as well as colored, and reduced motion skips the animation.
+- **How to play:** a button beside the dice, and on the name screen, opens a short account of the rules and the table. A test checks its pays and limits against the engine.
 - **Others:** a button at the top names the shooter and opens the list of players, with invite, pass, leave and refill. Others' bets show as small dots with their initial, without amounts.
 - **Host:** Render's free tier, deployed from `main` after CI passes (ADR 0009).
 

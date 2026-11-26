@@ -1,6 +1,7 @@
 /** The page: a name, then the table, with messages laid over it so that nothing moves. */
 import { useState, useSyncExternalStore } from "react";
 import type { Connection } from "./connection";
+import { HowToPlay } from "./HowToPlay";
 import { Felt } from "./table/Felt";
 
 interface Props {
@@ -22,6 +23,7 @@ export function App({ name, join, resumed }: Props) {
 
 function Join({ name, sit }: { name: string; sit: (name: string) => void }) {
   const [typed, setTyped] = useState(name);
+  const [rules, setRules] = useState(false);
   return (
     <main>
       <form
@@ -42,7 +44,11 @@ function Join({ name, sit }: { name: string; sit: (name: string) => void }) {
           onChange={(e) => setTyped(e.target.value)}
         />
         <button disabled={!typed.trim()}>Sit down</button>
+        <button type="button" className="quiet" onClick={() => setRules(true)}>
+          How to play
+        </button>
       </form>
+      {rules && <HowToPlay close={() => setRules(false)} />}
     </main>
   );
 }

@@ -186,6 +186,31 @@ test("a player with too few chips is offered a free refill", async ({ browser })
   await context.close();
 });
 
+test("how to play can be read before and after sitting down", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 360, height: 560 } });
+  const page = await context.newPage();
+  await page.goto("/");
+  const open = page.getByRole("button", { name: "How to play" });
+  const rules = page.getByRole("dialog", { name: "How to play" });
+  const close = rules.getByRole("button", { name: "Close" });
+
+  for (const seated of [false, true]) {
+    if (seated) {
+      await page.getByRole("textbox", { name: "Your name" }).fill("Dee");
+      await page.getByRole("button", { name: "Sit down" }).click();
+    }
+    await open.click();
+    await expect(rules).toContainText("seven-out");
+    // Close stays on screen however long the words are, and the words scroll to the end.
+    await expect(close).toBeInViewport();
+    await rules.getByText("A seat is kept for 10 minutes").scrollIntoViewIfNeeded();
+    await expect(rules.getByText("A seat is kept for 10 minutes")).toBeInViewport();
+    await close.click();
+    await expect(rules).toHaveCount(0);
+  }
+  await context.close();
+});
+
 // Small phones, with the browser's bars taking their share of the height.
 for (const viewport of [
   { width: 360, height: 560 },

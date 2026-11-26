@@ -5,7 +5,7 @@ A phone-first web game of crapless craps for a few friends at a shared table, wi
 ## Status
 All five slices of spec §9 are built and live at https://crapless.onrender.com (Render free tier, `render.yaml`, ADR 0009): the rules engine (`src/crapless/engine/`), the server with shared tables (`src/crapless/server/`, `docs/protocol.md`) and the phone table (`web/src/table/`). `docs/case-study.md` says where v1 stands and `docs/runbook.md` how to run it. Open: spec §10.1 is tried on iPhone only, not on Android. The look and feel is Dan's call, on a real phone.
 
-**Next:** nothing planned. Field, hardways and buy bets are spec §4's "next after v1". Use `.github/pull_request_template.md` for pull requests.
+**Next:** nothing planned. When a rule or a default changes, update the How to play screen (`web/src/HowToPlay.tsx`, `web/src/rules.ts`). Field, hardways and buy bets are spec §4's "next after v1". Use `.github/pull_request_template.md` for pull requests.
 
 **Checks:** `uv run ruff check`, `uv run ruff format --check`, `uv run mypy`, `uv run pytest`; in `web/`, `npm run typecheck`, `npm test`, `npm run build`, `npm run e2e`. When the page's look changes, re-record `docs/demo.gif` with `npm run demo:gif`. After changing a protocol message, regenerate (see `docs/protocol.md`).
 

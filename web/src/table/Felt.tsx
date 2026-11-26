@@ -1,6 +1,7 @@
 /** The table, drawn as one SVG. It asks for things; it decides nothing about the rules. */
 import { type PointerEvent, useRef, useState } from "react";
 import type { Intent } from "../connection";
+import { HowToPlay } from "../HowToPlay";
 import { settlementText, spotName } from "../labels";
 import type { SpotView, State } from "../protocol.gen";
 import { Dice } from "./Dice";
@@ -25,6 +26,7 @@ export function Felt({ table: newest, live, busy: waiting, refusal, send }: Prop
   const busy = waiting || throwing;
   const held = usePause(table);
   const [open, setOpen] = useState(false);
+  const [rules, setRules] = useState(false);
   const { me, shooter } = players(table);
   const mine = shooter?.seat === me?.seat;
   const [chip, setChip] = useState<number>(5);
@@ -124,6 +126,24 @@ export function Felt({ table: newest, live, busy: waiting, refusal, send }: Prop
           Play money only. Tables start over when the server sleeps.
         </text>
       </g>
+
+      {/* Beside the dice, so someone new can find it. */}
+      <Button
+        x={14}
+        y={262}
+        width={72}
+        height={48}
+        label="How to play"
+        className="help"
+        onPress={() => setRules(true)}
+      >
+        <text x={50} y={282}>
+          How to
+        </text>
+        <text x={50} y={298}>
+          play
+        </text>
+      </Button>
 
       <ComeBar
         table={table}
@@ -238,6 +258,7 @@ export function Felt({ table: newest, live, busy: waiting, refusal, send }: Prop
       </Button>
     </svg>
       {open && <Panel table={table} busy={busy} send={send} close={() => setOpen(false)} />}
+      {rules && <HowToPlay close={() => setRules(false)} />}
     </>
   );
 }

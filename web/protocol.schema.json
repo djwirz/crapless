@@ -32,12 +32,31 @@
               "type": "null"
             }
           ]
+        },
+        "table": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_-]{12,32}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "maxLength": 12,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]*\\S[^\\x00-\\x1f\\x7f]*$",
+          "type": "string"
         }
       },
       "required": [
         "type",
         "v",
-        "token"
+        "token",
+        "table",
+        "name"
       ],
       "title": "Hello",
       "type": "object"
@@ -70,6 +89,46 @@
       "title": "LastRoll",
       "type": "object"
     },
+    "Leave": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "leave",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ],
+      "title": "Leave",
+      "type": "object"
+    },
+    "OthersOnSpot": {
+      "additionalProperties": false,
+      "properties": {
+        "spot": {
+          "$ref": "#/$defs/Spot"
+        },
+        "seats": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "spot",
+        "seats"
+      ],
+      "title": "OthersOnSpot",
+      "type": "object"
+    },
     "Outcome": {
       "enum": [
         "win",
@@ -79,6 +138,31 @@
       ],
       "title": "Outcome",
       "type": "string"
+    },
+    "PassDice": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "pass",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "roll": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "roll"
+      ],
+      "title": "PassDice",
+      "type": "object"
     },
     "PlaceBet": {
       "additionalProperties": false,
@@ -113,6 +197,50 @@
         "roll"
       ],
       "title": "PlaceBet",
+      "type": "object"
+    },
+    "PlayerView": {
+      "additionalProperties": false,
+      "properties": {
+        "seat": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "color": {
+          "type": "integer"
+        },
+        "bankroll": {
+          "type": "integer"
+        },
+        "away": {
+          "type": "boolean"
+        },
+        "shooter": {
+          "type": "boolean"
+        },
+        "net": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "seat",
+        "name",
+        "color",
+        "bankroll",
+        "away",
+        "shooter",
+        "net"
+      ],
+      "title": "PlayerView",
       "type": "object"
     },
     "Refill": {
@@ -306,7 +434,7 @@
     },
     "State": {
       "additionalProperties": false,
-      "description": "The whole table, sent after every change. Clients replace what they had.",
+      "description": "One player's view of the whole table, sent after every change. Replace what you had.",
       "properties": {
         "type": {
           "const": "state",
@@ -321,8 +449,18 @@
         "table": {
           "type": "string"
         },
-        "reset": {
-          "type": "boolean"
+        "you": {
+          "type": "string"
+        },
+        "notice": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "ack": {
           "anyOf": [
@@ -360,12 +498,40 @@
             }
           ]
         },
+        "wait_ms": {
+          "type": "integer"
+        },
         "can_refill": {
           "type": "boolean"
+        },
+        "can_pass": {
+          "type": "boolean"
+        },
+        "leave_blocked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "players": {
+          "items": {
+            "$ref": "#/$defs/PlayerView"
+          },
+          "type": "array"
         },
         "spots": {
           "items": {
             "$ref": "#/$defs/SpotView"
+          },
+          "type": "array"
+        },
+        "others": {
+          "items": {
+            "$ref": "#/$defs/OthersOnSpot"
           },
           "type": "array"
         },
@@ -385,14 +551,20 @@
         "v",
         "token",
         "table",
-        "reset",
+        "you",
+        "notice",
         "ack",
         "bankroll",
         "point",
         "roll",
         "roll_blocked",
+        "wait_ms",
         "can_refill",
+        "can_pass",
+        "leave_blocked",
+        "players",
         "spots",
+        "others",
         "last_roll"
       ],
       "title": "State",
@@ -440,6 +612,8 @@
         "mapping": {
           "bet": "#/$defs/PlaceBet",
           "hello": "#/$defs/Hello",
+          "leave": "#/$defs/Leave",
+          "pass": "#/$defs/PassDice",
           "refill": "#/$defs/Refill",
           "roll": "#/$defs/RollDice",
           "working": "#/$defs/Working"
@@ -461,6 +635,12 @@
         },
         {
           "$ref": "#/$defs/Refill"
+        },
+        {
+          "$ref": "#/$defs/PassDice"
+        },
+        {
+          "$ref": "#/$defs/Leave"
         }
       ]
     },

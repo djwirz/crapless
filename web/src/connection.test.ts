@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Connection, type Socket, TOKEN_KEY } from "./connection";
+import { Connection, seatKey, type Socket, TABLE_KEY } from "./connection";
 import type { State } from "./protocol.gen";
 
 class FakeSocket implements Socket {
@@ -21,17 +21,23 @@ class FakeSocket implements Socket {
 
 const state = (change: Partial<State> = {}): State => ({
   type: "state",
-  v: 1,
+  v: 2,
   token: "secret",
-  table: "t",
-  reset: false,
+  table: "the-table",
+  you: "p1",
+  notice: null,
   ack: null,
   bankroll: 1000,
   point: null,
   roll: 0,
   roll_blocked: null,
+  wait_ms: 0,
   can_refill: false,
+  can_pass: false,
+  leave_blocked: null,
+  players: [],
   spots: [],
+  others: [],
   last_roll: null,
   ...change,
 });
@@ -58,21 +64,41 @@ beforeEach(() => {
       return latest();
     },
     { getItem: (k) => kept.get(k) ?? null, setItem: (k, v) => void kept.set(k, v) },
+    { name: "Ana", table: null },
   );
   connection.open();
 });
 afterEach(() => vi.useRealTimers());
 
 describe("Connection", () => {
-  it("says hello, keeps the token and uses it next time", () => {
+  it("says hello, keeps the seat and asks for it next time", () => {
     join();
-    expect(latest().sent[0]).toEqual({ type: "hello", v: 1, token: null });
-    expect(kept.get(TOKEN_KEY)).toBe("secret");
+    const hello = { type: "hello", v: 2, name: "Ana" };
+    expect(latest().sent[0]).toEqual({ ...hello, table: null, token: null });
+    expect(kept.get(seatKey("the-table"))).toBe("secret");
+    expect(kept.get(TABLE_KEY)).toBe("the-table");
 
     latest().onclose?.({ code: 1006 });
     vi.advanceTimersByTime(500);
     latest().onopen?.();
-    expect(latest().sent[0]).toEqual({ type: "hello", v: 1, token: "secret" });
+    expect(latest().sent[0]).toEqual({ ...hello, table: "the-table", token: "secret" });
+  });
+
+  it("calls a table live only after the first one on a connection", () => {
+    join();
+    expect(connection.snapshot().live).toBe(false);
+    latest().says(state({ roll: 1 }));
+    expect(connection.snapshot().live).toBe(true);
+    connection.wake();
+    join({ roll: 2 });
+    expect(connection.snapshot().live).toBe(false);
+  });
+
+  it("forgets the seat on leaving", () => {
+    join();
+    latest().onclose?.({ code: 4002 });
+    expect(kept.get(seatKey("the-table"))).toBe("");
+    expect(connection.snapshot().status).toBe("left");
   });
 
   it("sends one thing at a time, each with its own id", () => {
@@ -114,6 +140,8 @@ describe("Connection", () => {
   it.each([
     [4001, "elsewhere"],
     [4000, "outdated"],
+    [4002, "left"],
+    [4003, "full"],
   ])("stays closed after close code %i", (code, status) => {
     join();
     latest().onclose?.({ code });
@@ -132,11 +160,11 @@ describe("Connection", () => {
     expect(sockets).toHaveLength(2);
   });
 
-  it("keeps the new-table notice until the player does something", () => {
-    join({ reset: true });
+  it("keeps a notice until the player does something", () => {
+    join({ notice: "Started over." });
     latest().says(state());
-    expect(connection.snapshot().reset).toBe(true);
+    expect(connection.snapshot().notice).toBe("Started over.");
     connection.send({ type: "refill" });
-    expect(connection.snapshot().reset).toBe(false);
+    expect(connection.snapshot().notice).toBeNull();
   });
 });

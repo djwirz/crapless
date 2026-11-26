@@ -4,21 +4,29 @@ import type { Intent } from "../connection";
 import { settlementText, spotName } from "../labels";
 import type { SpotView, State } from "../protocol.gen";
 import { Dice } from "./Dice";
+import { Dots } from "./Dots";
 import * as at from "./layout";
-import { canSwitch, findSpot, hint, type Mode, tap } from "./model";
+import { canSwitch, findSpot, hint, type Mode, players, tap } from "./model";
+import { Panel } from "./Panel";
 import { Button, Chip, CHIPS, Puck } from "./pieces";
+import { usePause } from "./usePause";
 import { useThrow } from "./useThrow";
 
 interface Props {
   table: State;
+  live: boolean;
   busy: boolean;
   refusal: string | null;
   send: (intent: Intent) => void;
 }
 
-export function Felt({ table: latest, busy: waiting, refusal, send }: Props) {
-  const { shown: table, throwing, result } = useThrow(latest);
+export function Felt({ table: newest, live, busy: waiting, refusal, send }: Props) {
+  const { shown: table, throwing, result } = useThrow(newest, live);
   const busy = waiting || throwing;
+  const held = usePause(table);
+  const [open, setOpen] = useState(false);
+  const { me, shooter } = players(table);
+  const mine = shooter?.seat === me?.seat;
   const [chip, setChip] = useState<number>(5);
   const [wanted, setMode] = useState<Mode>("add");
   const switchable = canSwitch(table);
@@ -36,7 +44,7 @@ export function Felt({ table: latest, busy: waiting, refusal, send }: Props) {
       : mode === "take"
         ? `Take chips off ${name}`
         : `Switch ${name}`;
-  const canRoll = !busy && table.roll_blocked === null;
+  const canRoll = !busy && !held && table.roll_blocked === null;
   const throwDice = () => canRoll && send({ type: "roll", roll });
 
   const flickFrom = useRef<number | null>(null);
@@ -56,9 +64,16 @@ export function Felt({ table: latest, busy: waiting, refusal, send }: Props) {
     ? "…"
     : last
       ? `${last.die1} + ${last.die2} = ${total}${net > 0 ? `   +${net}` : net < 0 ? `   −${-net}` : ""}`
-      : "Flick up to throw";
+      : mine
+        ? "Flick up to throw"
+        : "Waiting for the throw";
+  const seats = table.players.length;
+  // The button sits between two numbers, so a long name is cut short there.
+  const name = shooter && shooter.name.length > 8 ? `${shooter.name.slice(0, 7)}…` : shooter?.name;
+  const who = seats === 1 ? "Invite" : `${mine ? "Your dice" : name} · ${seats}`;
 
   return (
+    <>
     <svg
       className="felt"
       viewBox={`0 0 ${at.WIDTH} ${at.HEIGHT}`}
@@ -80,21 +95,19 @@ export function Felt({ table: latest, busy: waiting, refusal, send }: Props) {
         <text x={348} y={44} className="big end" data-testid="point">
           {point === null ? "Come-out" : `Point ${point}`}
         </text>
-        {table.can_refill && (
-          <Button
-            x={140}
-            y={3}
-            width={80}
-            height={49}
-            label="Refill chips"
-            className="plain"
-            onPress={busy ? null : () => send({ type: "refill" })}
-          >
-            <text x={180} y={28} dy="0.35em">
-              Refill
-            </text>
-          </Button>
-        )}
+        <Button
+          x={98}
+          y={3}
+          width={124}
+          height={49}
+          label="Players"
+          className="who"
+          onPress={() => setOpen(true)}
+        >
+          <text x={160} y={28} dy="0.35em">
+            ⚂ {who} ▾
+          </text>
+        </Button>
       </g>
 
       {at.ROWS.flat().map((number) => (
@@ -124,8 +137,10 @@ export function Felt({ table: latest, busy: waiting, refusal, send }: Props) {
       <LineBet box={at.PASS} title="PASS LINE" view={findSpot(table, "pass")} press={press} label={label} />
       <LineBet box={at.ODDS} title="ODDS" view={findSpot(table, "pass_odds")} press={press} label={label} />
 
+      <Dots table={table} />
+
       <text x={180} y={at.HINT_Y} className={refusal ? "hint refusal" : "hint"} role="status">
-        {refusal ?? hint(table, mode)}
+        {refusal ?? hint(table, mode, held)}
       </text>
 
       <g role="group" aria-label="Chip">
@@ -206,6 +221,8 @@ export function Felt({ table: latest, busy: waiting, refusal, send }: Props) {
         </text>
       </Button>
     </svg>
+      {open && <Panel table={table} busy={busy} send={send} close={() => setOpen(false)} />}
+    </>
   );
 }
 

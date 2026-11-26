@@ -48,6 +48,10 @@ Sources: [Maryland standard rules for crapless craps, v1.1](https://www.mdgaming
 - Come odds are off on a come-out roll unless the table setting turns them on. The Come bet itself still wins or loses, and odds that were off come back to the player. Neither rules page above says either way.
 - The shooter needs a Pass bet to roll a come-out, and keeps the dice until a seven-out or chooses to pass them between rolls. The point and every bet stay. The dice go to the next player to the left.
 - A player can leave unless they have a Pass or Come bet on a point. Their other bets leave with their bankroll.
+- Up to eight seats. The shooter rolls when ready, but not until about two seconds after anyone else's last bet.
+- If the shooter has been away for 30 seconds, the dice pass to the next player who is there. A player away for 10 minutes loses the seat once none of their bets is locked.
+
+**Joining:** opening the site makes a table. Its code is in the link after `#`, so it is not sent in requests. A player picks a display name. A link to a table lost in a restart starts it again under the same code.
 
 **Next after v1:** field (2, 3, 4, 9, 10, 11, 12; 1 to 1, and 2 to 1 on 2 and 12) and hardways (4/10: 7 to 1; 6/8: 9 to 1), then buy bets.
 
@@ -64,7 +68,7 @@ Sources: [Maryland standard rules for crapless craps, v1.1](https://www.mdgaming
 | The shooter disappears | After a short wait the dice pass to the left. |
 | A message is sent twice | The second copy changes nothing. |
 | A bet arrives after the roll | Rejected, with the reason shown. |
-| The server restarts | Tables are held in memory only, so they start over, and the page says so (ADR 0009). |
+| The server restarts | Tables are held in memory only, so they start over, and the page says so (ADR 0009). Old links still bring people together. |
 
 ## 6. Architecture
 ```
@@ -80,6 +84,7 @@ Sources: [Maryland standard rules for crapless craps, v1.1](https://www.mdgaming
 - **Protocol:** versioned and written down in `docs/protocol.md`, so a native app can later be a second client.
 - **Front end:** React and TypeScript built with Vite, with an SVG table from slice 3. It draws the state and sends intents. The server says what may be bet on each spot, so the page holds no rules, and the server checks everything again.
 - **Table:** one portrait screen with nothing to scroll. Pick a chip and tap a spot; a − switch takes chips off. On a come-out the Come bar switches Place bets on or off. Tap Roll or flick up on the dice. The bankroll and chips change only when the dice land, wins and losses are written out as well as colored, and reduced motion skips the animation.
+- **Others:** a button at the top names the shooter and opens the list of players, with invite, pass, leave and refill. Others' bets show as small dots with their initial, without amounts.
 - **Host:** Render's free tier, deployed from `main` after CI passes (ADR 0009).
 
 ## 7. Observability
@@ -112,7 +117,6 @@ A table of one is solo play, so there's no separate solo mode.
 5. ADRs for every expensive decision, and each PR says how AI was used and what it got wrong.
 
 ## 11. Open questions
-Numbers are kept as questions are settled. Q1, Q2 and Q4 are settled in §4; Q3, Q5 and Q6 in §5 and §6.
+Numbers are kept as questions are settled. Q1, Q2 and Q4 are settled in §4; Q3, Q5 and Q6 in §5 and §6; Q7 and Q8 in §4.
 
-- **Q7.** **Betting window** (before slice 4). Does the shooter roll whenever ready, or after a short timer or everyone's "ready"? Recommendation: the shooter rolls when ready, with a brief pause after the last bet.
-- **Q8.** **Table size** (before slice 4). Recommendation: up to about eight.
+None are open.

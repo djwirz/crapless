@@ -20,7 +20,7 @@ execFileSync("npx", ["playwright", "test"], {
 
 // 10 frames a second and one shared palette keep the file small.
 const filter = [
-  "[0:v]fps=10,scale=360:-1:flags=lanczos,split[a][b]",
+  "[0:v]fps=10,scale=320:-1:flags=lanczos,split[a][b]",
   "[a]palettegen=max_colors=96:stats_mode=diff[p]",
   "[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle",
 ].join(";");

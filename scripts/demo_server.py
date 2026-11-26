@@ -12,8 +12,9 @@ from crapless.server.app import create_app
 
 PORT = 8766
 PAGE = Path(__file__).parent.parent / "web" / "dist"
-# One hand: 6 is the point, a Come bet travels to 9, Place 8 hits, 9 pays, 6 makes the point.
-ROLLS = [(3, 3), (5, 4), (4, 4), (6, 3), (4, 2)]
+# A turn each. First: 6 is the point, a Come bet travels to 9, Place 8 hits, then seven out.
+# Second: 4 is the point, then seven out.
+ROLLS = [(3, 3), (5, 4), (4, 4), (3, 4), (2, 2), (4, 3)]
 
 if __name__ == "__main__":
     script = cycle(ROLLS)

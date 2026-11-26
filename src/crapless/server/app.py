@@ -4,9 +4,8 @@ import asyncio
 import logging
 import os
 import sys
-import time
-from collections.abc import Callable
-from contextlib import suppress
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -15,7 +14,10 @@ from pydantic import ValidationError
 
 from crapless.server import messages
 from crapless.server.tables import (
+    Bucket,
+    Busy,
     Dice,
+    Player,
     Table,
     TableFull,
     Tables,
@@ -26,9 +28,10 @@ from crapless.server.tables import (
 
 MAX_MESSAGE = 1024
 HELLO_SECONDS = 10.0
-MAX_CONNECTIONS = 100
+MAX_CONNECTIONS = 200
 BURST = 30
 PER_SECOND = 10.0
+QUEUE = 64
 
 # WebSocket close codes. 4000 and up are ours; docs/protocol.md lists them.
 UNSUPPORTED_DATA = 1003
@@ -37,6 +40,8 @@ TOO_BIG = 1009
 TRY_LATER = 1013
 WRONG_VERSION = 4000
 TAKEN_OVER = 4001
+LEFT = 4002
+TABLE_FULL = 4003
 
 
 class Close(Exception):
@@ -46,27 +51,51 @@ class Close(Exception):
         self.reason = reason
 
 
-class RateLimit:
-    """A token bucket for one connection."""
+class Connection:
+    """One socket's outbox. A slow phone fills its own queue and holds nobody else up."""
 
-    def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
-        self.clock = clock
-        self.allowance = float(BURST)
-        self.then = clock()
+    def __init__(self, socket: WebSocket) -> None:
+        self.socket = socket
+        self.outbox: asyncio.Queue[str | Close] = asyncio.Queue(QUEUE)
+        self.closing = False
 
-    def allow(self) -> bool:
-        now = self.clock()
-        self.allowance = min(BURST, self.allowance + (now - self.then) * PER_SECOND)
-        self.then = now
-        if self.allowance < 1:
-            return False
-        self.allowance -= 1
-        return True
+    def send(self, message: messages.State | messages.Refused) -> None:
+        self._put(message.model_dump_json())
+
+    def close(self, code: int, reason: str) -> None:
+        self._put(Close(code, reason))
+        self.closing = True
+
+    def _put(self, item: str | Close) -> None:
+        if self.closing:
+            return
+        try:
+            self.outbox.put_nowait(item)
+        except asyncio.QueueFull:
+            # Too far behind to catch up. Drop what is waiting and let it reconnect.
+            while not self.outbox.empty():
+                self.outbox.get_nowait()
+            self.outbox.put_nowait(Close(TRY_LATER, "fell behind"))
+            self.closing = True
+
+    async def write(self) -> None:
+        with suppress(RuntimeError, WebSocketDisconnect):
+            while True:
+                item = await self.outbox.get()
+                if isinstance(item, Close):
+                    await self.socket.close(item.code, item.reason)
+                    return
+                await self.socket.send_text(item)
 
 
-async def _receive(
-    socket: WebSocket,
-) -> messages.Hello | messages.PlaceBet | messages.Working | messages.RollDice | messages.Refill:
+def broadcast(table: Table, *, asker: Player | None = None, ack: str | None = None) -> None:
+    """Send each connected player their own view."""
+    for player in table.players.values():
+        if isinstance(player.connection, Connection):
+            player.connection.send(table.view(player, ack=ack if player is asker else None))
+
+
+async def _receive(socket: WebSocket) -> messages.Hello | messages.Request:
     frame = await socket.receive()
     if frame["type"] == "websocket.disconnect":
         raise WebSocketDisconnect(frame.get("code", 1000))
@@ -82,46 +111,69 @@ async def _receive(
 
 
 def create_app(
-    *, dice: Dice = secure_dice, tables: Tables | None = None, static: Path | None = None
+    *,
+    dice: Dice = secure_dice,
+    tables: Tables | None = None,
+    static: Path | None = None,
+    tick_seconds: float = 1.0,
 ) -> FastAPI:
     _log_to_stdout()
-    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     registry = tables if tables is not None else Tables()
     open_sockets: set[WebSocket] = set()
+
+    async def tick() -> None:
+        while True:
+            await asyncio.sleep(tick_seconds)
+            for table in registry.tick():
+                broadcast(table)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        task = asyncio.create_task(tick())
+        yield
+        task.cancel()
+
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
-    async def send(socket: WebSocket, message: messages.State | messages.Refused) -> None:
-        await socket.send_text(message.model_dump_json())
-
-    async def sit_down(socket: WebSocket) -> Table:
+    async def hello(socket: WebSocket) -> messages.Hello:
         try:
-            hello = await asyncio.wait_for(_receive(socket), HELLO_SECONDS)
+            first = await asyncio.wait_for(_receive(socket), HELLO_SECONDS)
         except TimeoutError:
             raise Close(POLICY, "no hello") from None
-        if not isinstance(hello, messages.Hello):
+        except Close as close:
+            # An old page's hello lacks fields we now need; tell it to reload.
+            if close.code == POLICY:
+                raise Close(WRONG_VERSION, "protocol version not supported") from None
+            raise
+        if not isinstance(first, messages.Hello):
             raise Close(POLICY, "hello comes first")
-        if hello.v != messages.VERSION:
+        if first.v != messages.VERSION:
             raise Close(WRONG_VERSION, "protocol version not supported")
+        return first
 
-        table = registry.find(hello.token) if hello.token else None
-        reset = table is None and hello.token is not None
-        if table is None:
-            try:
-                table = registry.create()
-            except TableFull:
-                raise Close(TRY_LATER, "no tables free") from None
-
-        # One connection per seat. Take the seat first, then tell the old one to go.
-        previous, table.connection = table.connection, socket
-        if isinstance(previous, WebSocket):
-            with suppress(RuntimeError, WebSocketDisconnect):
-                await previous.close(TAKEN_OVER, "opened somewhere else")
-        event("connected", table=table.id)
-        await send(socket, table.view(reset=reset))
-        return table
+    async def play(socket: WebSocket, connection: Connection, table: Table, player: Player) -> None:
+        limit = Bucket(BURST, PER_SECOND)
+        while True:
+            message = await _receive(socket)
+            if not limit.allow():
+                raise Close(POLICY, "too many messages")
+            if isinstance(message, messages.Hello):
+                raise Close(POLICY, "already said hello")
+            if player.connection is not connection:
+                raise Close(TAKEN_OVER, "opened somewhere else")
+            table.last_seen = registry.clock()
+            refused = table.handle(player, message, dice)
+            if refused:
+                connection.send(refused)
+            elif player.seat not in table.players:
+                broadcast(table)
+                raise Close(LEFT, "you left the table")
+            else:
+                broadcast(table, asker=player, ack=message.id)
 
     @app.websocket("/ws")
     async def ws(socket: WebSocket) -> None:
@@ -130,34 +182,50 @@ def create_app(
             await socket.close(TRY_LATER, "server busy")
             return
         open_sockets.add(socket)
+        connection = Connection(socket)
+        writer: asyncio.Task[None] | None = None
         table: Table | None = None
-        limit = RateLimit()
+        player: Player | None = None
         try:
-            table = await sit_down(socket)
-            while True:
-                message = await _receive(socket)
-                if not limit.allow():
-                    raise Close(POLICY, "too many messages")
-                if isinstance(message, messages.Hello):
-                    raise Close(POLICY, "already said hello")
-                if table.connection is not socket:
-                    raise Close(TAKEN_OVER, "opened somewhere else")
-                table.last_seen = registry.clock()
-                await send(socket, table.handle(message, dice))
+            first = await hello(socket)
+            try:
+                table, player, notice = registry.sit(first.table, first.token, first.name)
+            except TableFull:
+                raise Close(TABLE_FULL, "the table is full") from None
+            except Busy:
+                raise Close(TRY_LATER, "no room just now") from None
+
+            # One connection per seat. Take the seat first, then tell the old one to go.
+            previous = table.connect(player, connection)
+            if isinstance(previous, Connection):
+                previous.close(TAKEN_OVER, "opened somewhere else")
+            writer = asyncio.create_task(connection.write())
+            event("connected", table=table.id, seat=player.seat)
+            connection.send(table.view(player, notice=notice))
+            for other in table.players.values():
+                if other is not player and isinstance(other.connection, Connection):
+                    other.connection.send(table.view(other))
+            await play(socket, connection, table, player)
         except Close as close:
             event("closed", table=table and table.id, code=close.code, why=close.reason)
-            with suppress(RuntimeError, WebSocketDisconnect):
-                await socket.close(close.code, close.reason)
+            if writer:
+                connection.close(close.code, close.reason)
+                await writer
+            else:
+                with suppress(RuntimeError, WebSocketDisconnect):
+                    await socket.close(close.code, close.reason)
         except WebSocketDisconnect:
-            event("disconnected", table=table and table.id)
+            event("disconnected", table=table and table.id, seat=player and player.seat)
         except Exception:
             log.exception("error on table %s", table and table.id)
             raise
         finally:
             open_sockets.discard(socket)
-            if table is not None and table.connection is socket:
-                table.connection = None
-                table.last_seen = registry.clock()
+            if writer:
+                writer.cancel()
+            gone = table and player and table.disconnect(player, connection)
+            if table and player and gone and player.seat in table.players:
+                broadcast(table)
 
     page = static or Path(os.environ.get("CRAPLESS_STATIC", "web/dist"))
     if page.is_dir():

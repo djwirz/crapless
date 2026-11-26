@@ -3,9 +3,9 @@
 A phone-first web game of crapless craps for a few friends at a shared table, with a rotating shooter and play money. A for-fun project, built properly. Use they/them for Dan.
 
 ## Status
-Slices 1 to 3 of spec §9 are built: the rules engine (`src/crapless/engine/`), the server (`src/crapless/server/`, protocol in `docs/protocol.md`) and the phone table for one player (`web/src/table/`). It is live at https://crapless.onrender.com on Render's free tier, set up from `render.yaml` (ADR 0009). The look and feel is Dan's call, on a real phone.
+Slices 1 to 4 of spec §9 are built: the rules engine (`src/crapless/engine/`), the server with shared tables (`src/crapless/server/`, protocol version 2 in `docs/protocol.md`) and the phone table (`web/src/table/`). It is live at https://crapless.onrender.com on Render's free tier, set up from `render.yaml` (ADR 0009). The look and feel is Dan's call, on a real phone.
 
-**Next:** slice 4 (shared table), in plan mode, after settling spec §11 Q7 and Q8.
+**Next:** slice 5 (finish), in plan mode.
 
 **Checks:** `uv run ruff check`, `uv run ruff format --check`, `uv run mypy`, `uv run pytest`; in `web/`, `npm run typecheck`, `npm test`, `npm run build`, `npm run e2e`. When the page's look changes, re-record `docs/demo.gif` with `npm run demo:gif`. After changing a protocol message, regenerate (see `docs/protocol.md`).
 

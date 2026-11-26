@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SettlementView, SpotView, State } from "../protocol.gen";
+import type { PlayerView, SettlementView, SpotView, State } from "../protocol.gen";
 import { canSwitch, hint, tap } from "./model";
 import { isThrow, outcome } from "./outcome";
 
@@ -14,19 +14,36 @@ const spot = (change: Partial<SpotView> = {}): SpotView => ({
   ...change,
 });
 
+const seat = (change: Partial<PlayerView> = {}): PlayerView => ({
+  seat: "p1",
+  name: "Ana",
+  color: 0,
+  bankroll: 1000,
+  away: false,
+  shooter: true,
+  net: null,
+  ...change,
+});
+
 const state = (change: Partial<State> = {}): State => ({
   type: "state",
-  v: 1,
+  v: 2,
   token: "s",
   table: "t",
-  reset: false,
+  you: "p1",
+  notice: null,
   ack: "a",
   bankroll: 1000,
   point: null,
   roll: 0,
   roll_blocked: null,
+  wait_ms: 0,
   can_refill: false,
+  can_pass: false,
+  leave_blocked: null,
+  players: [seat()],
   spots: [],
+  others: [],
   last_roll: null,
   ...change,
 });
@@ -66,6 +83,12 @@ describe("a tap", () => {
     expect(canSwitch(state({ spots: [spot()] }))).toBe(false);
   });
 
+  it("tells watchers who is shooting, and a shooter to wait", () => {
+    const two = [seat({ shooter: false }), seat({ seat: "p2", name: "Bo" })];
+    expect(hint(state({ players: two }), "add")).toBe("Tap to bet. Bo is shooting");
+    expect(hint(state(), "add", true)).toBe("Bets are going down…");
+  });
+
   it("is prompted by a hint", () => {
     expect(hint(state({ roll_blocked: "x" }), "add")).toBe("Tap PASS to start");
     expect(hint(state(), "add")).toBe("Roll to set the point");
@@ -76,13 +99,14 @@ describe("a tap", () => {
 describe("a throw", () => {
   const rolled = state({ roll: 1, last_roll: { die1: 3, die2: 3, settlements: [] } });
 
-  it("is seen only for the next roll, answered on this connection", () => {
-    expect(isThrow(state(), rolled)).toBe(true);
-    expect(isThrow(null, rolled)).toBe(false);
-    expect(isThrow(state(), { ...rolled, ack: null })).toBe(false); // a reconnect
-    expect(isThrow(state(), { ...rolled, table: "other" })).toBe(false);
-    expect(isThrow(state(), { ...rolled, roll: 5 })).toBe(false);
-    expect(isThrow(rolled, rolled)).toBe(false);
+  it("is seen only for the next roll, on the same connection", () => {
+    expect(isThrow(state(), rolled, true)).toBe(true);
+    expect(isThrow(state(), { ...rolled, ack: null }, true)).toBe(true); // someone else's
+    expect(isThrow(state(), rolled, false)).toBe(false); // a reconnect
+    expect(isThrow(null, rolled, true)).toBe(false);
+    expect(isThrow(state(), { ...rolled, table: "other" }, true)).toBe(false);
+    expect(isThrow(state(), { ...rolled, roll: 5 }, true)).toBe(false);
+    expect(isThrow(rolled, rolled, true)).toBe(false);
   });
 
   it.each([

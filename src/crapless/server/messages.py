@@ -1,4 +1,4 @@
-"""Protocol version 1 (docs/protocol.md). These models are its one definition (ADR 0008).
+"""Protocol version 2 (docs/protocol.md). These models are its one definition (ADR 0008).
 
 The TypeScript types in `web/src/protocol.gen.ts` are generated from them.
 No field has a default, so every field is required on both sides.
@@ -10,7 +10,12 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from crapless.engine import BetKind, Outcome
 
-VERSION = 1
+VERSION = 2
+
+TableCode = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{12,32}$")]
+Name = Annotated[
+    str, Field(min_length=1, max_length=12, pattern=r"^[^\x00-\x1f\x7f]*\S[^\x00-\x1f\x7f]*$")
+]
 
 MessageId = Annotated[str, Field(min_length=1, max_length=64)]
 Chips = Annotated[int, Field(ge=0, le=1_000_000_000)]
@@ -37,6 +42,10 @@ class Hello(Message):
     v: int
     token: Annotated[str, Field(max_length=128)] | None
     """The seat token from last time, to resume that seat."""
+    table: TableCode | None
+    """The code from the invite link, or null to open a new table."""
+    name: Name
+    """What the others see. Never logged."""
 
 
 class PlaceBet(Message):
@@ -67,12 +76,21 @@ class Refill(Message):
     id: MessageId
 
 
-ClientMessage = Annotated[
-    Hello | PlaceBet | Working | RollDice | Refill, Field(discriminator="type")
-]
-client_message: TypeAdapter[Hello | PlaceBet | Working | RollDice | Refill] = TypeAdapter(
-    ClientMessage
-)
+class PassDice(Message):
+    type: Literal["pass"]
+    id: MessageId
+    roll: RollNumber
+
+
+class Leave(Message):
+    type: Literal["leave"]
+    id: MessageId
+
+
+Request = PlaceBet | Working | RollDice | Refill | PassDice | Leave
+"""Anything a seated player may ask for."""
+ClientMessage = Annotated[Hello | Request, Field(discriminator="type")]
+client_message: TypeAdapter[Hello | Request] = TypeAdapter(ClientMessage)
 
 
 # Server to client
@@ -103,15 +121,35 @@ class LastRoll(Message):
     settlements: list[SettlementView]
 
 
+class PlayerView(Message):
+    seat: str
+    name: str
+    color: int
+    """0 to 7, one for each seat at a table."""
+    bankroll: int
+    away: bool
+    shooter: bool
+    net: int | None
+    """Winnings less losses on the last roll, or null if nothing of theirs was decided."""
+
+
+class OthersOnSpot(Message):
+    spot: Spot
+    seats: list[str]
+
+
 class State(Message):
-    """The whole table, sent after every change. Clients replace what they had."""
+    """One player's view of the whole table, sent after every change. Replace what you had."""
 
     type: Literal["state"]
     v: int
     token: str
     table: str
-    reset: bool
-    """True when the token sent was not known, so this is a new table."""
+    """The code for the invite link. A secret."""
+    you: str
+    """Your seat id."""
+    notice: str | None
+    """Something to tell the player once, such as that the table started over."""
     ack: str | None
     """The id of the message this answers."""
     bankroll: int
@@ -119,9 +157,17 @@ class State(Message):
     roll: int
     roll_blocked: str | None
     """Why the dice cannot be rolled now, or null if they can."""
+    wait_ms: int
+    """How long the shooter's Roll is still held after someone else's bet."""
     can_refill: bool
+    can_pass: bool
+    leave_blocked: str | None
+    players: list[PlayerView]
+    """In seat order, which is the order the dice go round."""
     spots: list[SpotView]
+    others: list[OthersOnSpot]
     last_roll: LastRoll | None
+    """The dice, and what the roll did to your bets."""
 
 
 class Refused(Message):

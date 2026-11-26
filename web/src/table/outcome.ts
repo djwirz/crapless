@@ -18,13 +18,13 @@ export interface Outcome {
 }
 
 /**
- * Whether the dice should be seen to tumble: only for the very next roll, answered on this
+ * Whether the dice should be seen to tumble: only for the very next roll, heard on the same
  * connection. A reconnect or reload shows the table as it is and never replays a throw.
  */
-export function isThrow(before: State | null, after: State): boolean {
+export function isThrow(before: State | null, after: State, live: boolean): boolean {
   return (
     before !== null &&
-    after.ack !== null &&
+    live &&
     after.table === before.table &&
     after.roll === before.roll + 1 &&
     after.last_roll !== null

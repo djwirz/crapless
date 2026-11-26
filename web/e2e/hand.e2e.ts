@@ -1,85 +1,132 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { type Page, expect, test } from "@playwright/test";
+import { type Browser, type BrowserContext, type Page, expect, test } from "@playwright/test";
 
 const recording = process.env["DEMO_GIF"] === "1";
 const SIZE = { width: 390, height: 640 };
 const VIDEO = resolve(import.meta.dirname, "../test-results/demo/hand.webm");
 
-test("a hand: bets, a travelling Come bet, and the point made", async ({ browser }) => {
-  test.setTimeout(90_000);
+interface Seat {
+  context: BrowserContext;
+  page: Page;
+  errors: string[];
+}
+
+async function sit(browser: Browser, name: string, link = "/", record = false): Promise<Seat> {
   const context = await browser.newContext({
     viewport: SIZE,
     isMobile: true,
     hasTouch: true,
     colorScheme: "dark",
-    ...(recording ? { recordVideo: { dir: resolve(VIDEO, ".."), size: SIZE } } : {}),
+    ...(record ? { recordVideo: { dir: resolve(VIDEO, ".."), size: SIZE } } : {}),
   });
   const page = await context.newPage();
-  if (recording) await showTaps(page);
+  if (record) await showTaps(page);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto(link);
+  await page.getByRole("textbox", { name: "Your name" }).fill(name);
+  await page.getByRole("button", { name: "Sit down" }).tap();
+  await expect(page.getByTestId("bankroll")).toHaveText("1000");
+  return { context, page, errors };
+}
 
+// Two phones at one table, each taking a full turn with the dice (spec §8).
+test("two players, a shooter turn each", async ({ browser }) => {
+  test.setTimeout(120_000);
+  const ana = await sit(browser, "Ana", "/", recording);
+  await expect(ana.page).toHaveURL(/#t=[\w-]{12,}$/);
+  const bo = await sit(browser, "Bo", ana.page.url());
+  const a = ana.page;
+  const b = bo.page;
   // Only the recording lingers, so that a person can follow it.
-  const pause = (ms: number) => (recording ? page.waitForTimeout(ms) : Promise.resolve());
+  const pause = (ms: number) => (recording ? a.waitForTimeout(ms) : Promise.resolve());
 
-  const chip = (value: number) =>
+  const chip = (page: Page, value: number) =>
     page.getByRole("group", { name: "Chip" }).getByRole("button", { name: `${value}`, exact: true });
-  const add = async (spot: string, amount: string, total: number) => {
+  const add = async (page: Page, spot: string, amount: string, total: number) => {
     await page.getByRole("button", { name: `Add chips to ${spot}`, exact: true }).tap();
     await expect(page.getByTestId(`amount-${amount}`)).toHaveText(`${total}`);
-    await pause(450);
+    if (page === a) await pause(450);
   };
-  const rollButton = page.getByRole("button", { name: "Roll", exact: true });
-  // The bankroll must not move until the dice have landed.
-  const roll = async (result: string, bankroll: number, point: string, flick = false) => {
-    const before = await page.getByTestId("bankroll").textContent();
-    if (flick) await flickDice(page);
-    else await rollButton.tap();
-    await expect(page.getByTestId("result")).toHaveText("…");
-    await expect(page.getByTestId("bankroll")).toHaveText(before!);
-    await expect(page.getByTestId("result")).toHaveText(result);
-    await expect(page.getByTestId("bankroll")).toHaveText(`${bankroll}`);
-    await expect(page.getByTestId("point")).toHaveText(point);
+  const rollButton = (page: Page) => page.getByRole("button", { name: "Roll", exact: true });
+  // Both phones see the same dice, and neither bankroll moves until they have landed.
+  const roll = async (by: Page, result: RegExp, point: string, flick = false) => {
+    if (flick) {
+      await expect(rollButton(by)).toBeEnabled(); // held a moment after another's bet
+      await flickDice(by);
+    } else await rollButton(by).tap();
+    for (const page of [a, b]) await expect(page.getByTestId("result")).toHaveText("…");
+    for (const page of [a, b]) {
+      await expect(page.getByTestId("result")).toHaveText(result);
+      await expect(page.getByTestId("point")).toHaveText(point);
+    }
     await pause(1_900);
   };
+  const bankrolls = async (anas: number, bos: number) => {
+    await expect(a.getByTestId("bankroll")).toHaveText(`${anas}`);
+    await expect(b.getByTestId("bankroll")).toHaveText(`${bos}`);
+  };
 
-  await page.goto("/");
   await pause(1_200);
-  await add("Pass", "pass-null", 5);
-  await add("Pass", "pass-null", 10);
-  await roll("3 + 3 = 6", 990, "Point 6");
-  await expect(page.getByTestId("banner")).toHaveText("The point is 6");
+  await expect(rollButton(b)).toBeDisabled();
+  await add(a, "Pass", "pass-null", 5);
+  await add(a, "Pass", "pass-null", 10);
+  await add(b, "Pass", "pass-null", 5);
+  await expect(a.getByTestId("dot-pass")).toHaveCount(1);
+  await roll(a, /^3 \+ 3 = 6$/, "Point 6");
 
-  await chip(25).tap();
-  await add("Pass odds", "pass_odds-null", 25);
-  await chip(5).tap();
-  await add("Come", "come-null", 5);
-  await add("Come", "come-null", 10);
-  await add("Place 8", "place-8", 6);
-  await add("Place 8", "place-8", 12);
-  await roll("5 + 4 = 9", 943, "Point 6", true);
+  await chip(a, 25).tap();
+  await add(a, "Pass odds", "pass_odds-null", 25);
+  await chip(a, 5).tap();
+  await add(a, "Come", "come-null", 5);
+  await add(a, "Come", "come-null", 10);
+  await add(a, "Place 8", "place-8", 6);
+  await add(a, "Place 8", "place-8", 12);
+  await add(b, "Place 5", "place-5", 5);
+  await expect(a.getByTestId("dot-place:5")).toHaveCount(1);
+  await roll(a, /^5 \+ 4 = 9$/, "Point 6", true);
 
-  await chip(25).tap();
-  await add("Come 9 odds", "come_odds-9", 26);
-  await roll("4 + 4 = 8 +14", 931, "Point 6");
+  // Coming back finds the seat and the chips, and does not throw the dice again.
+  await b.reload();
+  await expect(b.getByTestId("bankroll")).toHaveText("990");
+  await expect(b.getByTestId("amount-place-5")).toHaveText("5");
+  await expect(b.getByTestId("result")).not.toHaveText("…");
+  await expect(b.getByTestId("banner")).toHaveCount(0);
 
-  await roll("6 + 3 = 9 +49", 1016, "Point 6");
-  await roll("4 + 2 = 6 +40", 1091, "Come-out");
-  await expect(page.getByTestId("banner")).toHaveText("Point 6 made!");
-  await pause(1_500);
+  await chip(a, 25).tap();
+  await add(a, "Come 9 odds", "come_odds-9", 26);
+  await roll(a, /^4 \+ 4 = 8/, "Point 6");
+  // Each phone shows its own winnings.
+  await expect(a.getByTestId("result")).toContainText("+14");
+  await expect(b.getByTestId("result")).not.toContainText("+14");
+  await bankrolls(931, 990);
 
-  const video = page.video();
-  if (!video) {
-    // Coming back shows the table as it was, without throwing the dice again.
-    await page.reload();
-    await expect(page.getByTestId("result")).toHaveText("4 + 2 = 6");
-    await expect(page.getByTestId("bankroll")).toHaveText("1091");
-    await expect(page.getByTestId("banner")).toHaveCount(0);
-  }
+  await roll(a, /^3 \+ 4 = 7 /, "Come-out");
+  await expect(a.getByTestId("banner")).toHaveText("Seven out");
+  await bankrolls(931, 990);
 
-  expect(errors).toEqual([]);
-  await context.close();
+  // The dice have moved to the left.
+  await expect(rollButton(a)).toBeDisabled();
+  await expect(a.getByRole("button", { name: "Players" })).toContainText("Bo · 2");
+  await expect(b.getByRole("button", { name: "Players" })).toContainText("Your dice · 2");
+  await add(b, "Pass", "pass-null", 5);
+  await pause(600);
+  await roll(b, /^2 \+ 2 = 4/, "Point 4");
+  await roll(b, /^4 \+ 3 = 7/, "Come-out");
+  await bankrolls(931, 985);
+  await expect(a.getByRole("button", { name: "Players" })).toContainText("Your dice · 2");
+
+  await a.getByRole("button", { name: "Players" }).tap();
+  const panel = a.getByRole("dialog", { name: "Players" });
+  await expect(panel).toContainText("Bo");
+  await expect(panel).toContainText("985");
+  await pause(2_500);
+
+  expect([...ana.errors, ...bo.errors]).toEqual([]);
+  const video = a.video();
+  await ana.context.close();
+  await bo.context.close();
   if (video) {
     mkdirSync(resolve(VIDEO, ".."), { recursive: true });
     await video.saveAs(VIDEO);
@@ -96,22 +143,38 @@ for (const viewport of [
     const context = await browser.newContext({ viewport, isMobile: true, hasTouch: true });
     const page = await context.newPage();
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Roll", exact: true })).toBeVisible();
+    await page.getByRole("textbox", { name: "Your name" }).fill("Wwwwwwwwwwww");
+    await page.getByRole("button", { name: "Sit down" }).tap();
 
-    const buttons = await page.getByRole("button").all();
-    expect(buttons.length).toBeGreaterThan(15);
-    for (const button of buttons) {
-      const box = (await button.boundingBox())!;
-      const name = (await button.getAttribute("aria-label")) ?? "?";
-      expect(Math.min(box.width, box.height), `${name} is big enough`).toBeGreaterThanOrEqual(44);
-      expect(box.y + box.height, `${name} is on screen`).toBeLessThanOrEqual(viewport.height);
-      expect(box.x + box.width, `${name} is on screen`).toBeLessThanOrEqual(viewport.width);
-    }
+    const check = async (least: number) => {
+      const buttons = await page.getByRole("button").all();
+      expect(buttons.length).toBeGreaterThan(least);
+      for (const button of buttons) {
+        const box = (await button.boundingBox())!;
+        const name = (await button.getAttribute("aria-label")) ?? (await button.innerText());
+        expect(Math.min(box.width, box.height), `${name} is big enough`).toBeGreaterThanOrEqual(44);
+        expect(box.y + box.height, `${name} is on screen`).toBeLessThanOrEqual(viewport.height);
+        expect(box.x + box.width, `${name} is on screen`).toBeLessThanOrEqual(viewport.width);
+      }
+    };
+    await expect(page.getByRole("button", { name: "Roll", exact: true })).toBeVisible();
+    await check(15);
+    // The button must not run into the numbers either side of it.
+    const who = (await page.locator(".who .area").boundingBox())!;
+    const point = (await page.getByTestId("point").boundingBox())!;
+    const bankroll = (await page.getByTestId("bankroll").boundingBox())!;
+    expect(who.x + who.width).toBeLessThanOrEqual(point.x);
+    expect(bankroll.x + bankroll.width).toBeLessThanOrEqual(who.x);
     const scrolls = await page.evaluate(() => {
       const root = document.documentElement;
       return root.scrollHeight > root.clientHeight || root.scrollWidth > root.clientWidth;
     });
     expect(scrolls).toBe(false);
+
+    await page.getByRole("button", { name: "Players" }).tap();
+    const panel = page.getByRole("dialog", { name: "Players" });
+    await panel.getByRole("button", { name: "Invite" }).tap();
+    await expect(panel.getByRole("textbox")).toHaveValue(/#t=[\w-]{12,}$/);
     await context.close();
   });
 }

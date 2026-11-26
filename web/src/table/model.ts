@@ -32,12 +32,25 @@ export function canSwitch(table: State): boolean {
   return table.point === null && table.spots.some((s) => s.working !== null);
 }
 
-export function hint(table: State, mode: Mode): string {
+/** You, and whoever has the dice. */
+export function players(table: State) {
+  return {
+    me: table.players.find((p) => p.seat === table.you),
+    shooter: table.players.find((p) => p.shooter),
+  };
+}
+
+export function hint(table: State, mode: Mode, held = false): string {
   if (mode === "switch") return "Tap a number to switch its Place bet on or off";
   if (mode === "take") return "Tap a bet to take chips off it";
-  if (table.roll_blocked !== null) return "Tap PASS to start";
-  if (table.point === null) return "Roll to set the point";
+  if (table.bankroll < 5 && table.can_refill) return "Low on chips? Refill from the top button";
+  const { me, shooter } = players(table);
+  if (shooter && me && shooter.seat !== me.seat) return `Tap to bet. ${shooter.name} is shooting`;
+  if (held) return "Bets are going down…";
+  const yours = table.players.length > 1 ? "Your dice! " : "";
+  if (table.roll_blocked !== null) return `${yours}Tap PASS to start`;
+  if (table.point === null) return `${yours}Roll to set the point`;
   const odds = findSpot(table, "pass_odds");
   if (odds && odds.amount === 0 && odds.low !== null) return "Back your Pass with odds, or roll";
-  return "Tap to bet, then roll";
+  return `${yours}Tap to bet, then roll`;
 }

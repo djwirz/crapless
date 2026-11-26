@@ -197,9 +197,18 @@ text {
 .roll[aria-disabled="true"] {
   opacity: 0.35;
 }
-.plain text {
+.who .area {
+  fill: var(--felt-dark);
+}
+.who text {
   font-size: 13px;
-  text-decoration: underline;
+}
+.dots circle {
+  stroke: #000;
+}
+.dots text {
+  fill: #111;
+  font: bold 7.5px system-ui, sans-serif;
 }
 
 /* Chips, puck and dice */
@@ -351,4 +360,108 @@ text {
   .tumbling .die {
     animation: none;
   }
+}
+
+/* The players panel and the name form */
+.sheet,
+.join {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 12px;
+  box-sizing: border-box;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  background: var(--felt-dark);
+  overflow-y: auto;
+}
+.join {
+  justify-content: center;
+}
+.sheet ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sheet li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgb(243 234 210 / 25%);
+}
+.sheet li.away {
+  opacity: 0.6;
+}
+.sheet .swatch {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #111;
+  font: bold 12px system-ui, sans-serif;
+}
+.sheet .name {
+  flex: 1;
+}
+.sheet small {
+  display: block;
+  opacity: 0.75;
+}
+.sheet .net,
+.sheet .bankroll {
+  min-width: 3.5em;
+  text-align: right;
+}
+.sheet p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.sheet button,
+.join button,
+.join input,
+.link input {
+  min-height: 48px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--cream);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1rem;
+}
+.sheet button:disabled,
+.join button:disabled {
+  opacity: 0.35;
+}
+.sheet .close,
+.join button {
+  border-color: var(--gold);
+  background: var(--gold);
+  color: var(--wood);
+  font-weight: bold;
+}
+.link input {
+  width: 100%;
+  padding: 0 10px;
+}
+.join input {
+  padding: 0 12px;
+}
+.join h1 {
+  margin: 0;
+  text-align: center;
+  letter-spacing: 4px;
+}
+.join p {
+  margin: 0;
+  text-align: center;
 }

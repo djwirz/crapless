@@ -61,3 +61,14 @@ export function anchor(spot: Spot): { x: number; y: number } {
   const y = kind === "place" ? at.y + at.height - 8 : at.y + 14;
   return { x: at.x + at.width / 2, y };
 }
+
+/** Where the dots for other players' bets on a spot start. Come bets and their odds share. */
+export function dots(spot: Spot): { key: string; x: number; y: number } {
+  const { kind, number } = spot;
+  if (kind === "pass") return { key: "pass", x: PASS.x + 50, y: PASS.y + 9 };
+  if (kind === "pass_odds") return { key: "odds", x: ODDS.x + 50, y: ODDS.y + 9 };
+  if (number === null) return { key: "come", x: COME.x + 70, y: COME.y + 9 };
+  const at = numberBox(number);
+  const low = kind === "place";
+  return { key: `${low ? "place" : "come"}:${number}`, x: at.x + 7, y: at.y + (low ? 93 : 50) };
+}

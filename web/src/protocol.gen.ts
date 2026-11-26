@@ -20,7 +20,7 @@ export type Outcome = "win" | "lose" | "returned" | "moved";
  * Only for generating the schema: one of each direction.
  */
 export interface Protocol {
-  client: Hello | PlaceBet | Working | RollDice | Refill;
+  client: Hello | PlaceBet | Working | RollDice | Refill | PassDice | Leave;
   server: State | Refused;
 }
 /**
@@ -33,6 +33,8 @@ export interface Hello {
   type: "hello";
   v: number;
   token: string | null;
+  table: string | null;
+  name: string;
 }
 /**
  * This interface was referenced by `Protocol`'s JSON-Schema
@@ -82,7 +84,24 @@ export interface Refill {
   id: string;
 }
 /**
- * The whole table, sent after every change. Clients replace what they had.
+ * This interface was referenced by `Protocol`'s JSON-Schema
+ * via the `definition` "PassDice".
+ */
+export interface PassDice {
+  type: "pass";
+  id: string;
+  roll: number;
+}
+/**
+ * This interface was referenced by `Protocol`'s JSON-Schema
+ * via the `definition` "Leave".
+ */
+export interface Leave {
+  type: "leave";
+  id: string;
+}
+/**
+ * One player's view of the whole table, sent after every change. Replace what you had.
  *
  * This interface was referenced by `Protocol`'s JSON-Schema
  * via the `definition` "State".
@@ -92,15 +111,34 @@ export interface State {
   v: number;
   token: string;
   table: string;
-  reset: boolean;
+  you: string;
+  notice: string | null;
   ack: string | null;
   bankroll: number;
   point: number | null;
   roll: number;
   roll_blocked: string | null;
+  wait_ms: number;
   can_refill: boolean;
+  can_pass: boolean;
+  leave_blocked: string | null;
+  players: PlayerView[];
   spots: SpotView[];
+  others: OthersOnSpot[];
   last_roll: LastRoll | null;
+}
+/**
+ * This interface was referenced by `Protocol`'s JSON-Schema
+ * via the `definition` "PlayerView".
+ */
+export interface PlayerView {
+  seat: string;
+  name: string;
+  color: number;
+  bankroll: number;
+  away: boolean;
+  shooter: boolean;
+  net: number | null;
 }
 /**
  * This interface was referenced by `Protocol`'s JSON-Schema
@@ -114,6 +152,14 @@ export interface SpotView {
   high: number | null;
   removable: boolean;
   working: boolean | null;
+}
+/**
+ * This interface was referenced by `Protocol`'s JSON-Schema
+ * via the `definition` "OthersOnSpot".
+ */
+export interface OthersOnSpot {
+  spot: Spot;
+  seats: string[];
 }
 /**
  * This interface was referenced by `Protocol`'s JSON-Schema

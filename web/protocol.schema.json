@@ -1,0 +1,491 @@
+{
+  "$defs": {
+    "BetKind": {
+      "enum": [
+        "pass",
+        "pass_odds",
+        "come",
+        "come_odds",
+        "place"
+      ],
+      "title": "BetKind",
+      "type": "string"
+    },
+    "Hello": {
+      "additionalProperties": false,
+      "description": "The first message on a connection.",
+      "properties": {
+        "type": {
+          "const": "hello",
+          "type": "string"
+        },
+        "v": {
+          "type": "integer"
+        },
+        "token": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "v",
+        "token"
+      ],
+      "title": "Hello",
+      "type": "object"
+    },
+    "LastRoll": {
+      "additionalProperties": false,
+      "properties": {
+        "die1": {
+          "maximum": 6,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "die2": {
+          "maximum": 6,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "settlements": {
+          "items": {
+            "$ref": "#/$defs/SettlementView"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "die1",
+        "die2",
+        "settlements"
+      ],
+      "title": "LastRoll",
+      "type": "object"
+    },
+    "Outcome": {
+      "enum": [
+        "win",
+        "lose",
+        "returned",
+        "moved"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "PlaceBet": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "bet",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "spot": {
+          "$ref": "#/$defs/Spot"
+        },
+        "amount": {
+          "maximum": 1000000000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "roll": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "spot",
+        "amount",
+        "roll"
+      ],
+      "title": "PlaceBet",
+      "type": "object"
+    },
+    "Refill": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "refill",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ],
+      "title": "Refill",
+      "type": "object"
+    },
+    "Refused": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "rejected",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "code": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "code",
+        "reason"
+      ],
+      "title": "Refused",
+      "type": "object"
+    },
+    "RollDice": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "roll",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "roll": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "roll"
+      ],
+      "title": "RollDice",
+      "type": "object"
+    },
+    "SettlementView": {
+      "additionalProperties": false,
+      "properties": {
+        "spot": {
+          "$ref": "#/$defs/Spot"
+        },
+        "outcome": {
+          "$ref": "#/$defs/Outcome"
+        },
+        "amount": {
+          "type": "integer"
+        },
+        "paid": {
+          "type": "integer"
+        },
+        "returned": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "spot",
+        "outcome",
+        "amount",
+        "paid",
+        "returned"
+      ],
+      "title": "SettlementView",
+      "type": "object"
+    },
+    "Spot": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/BetKind"
+        },
+        "number": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "number"
+      ],
+      "title": "Spot",
+      "type": "object"
+    },
+    "SpotView": {
+      "additionalProperties": false,
+      "properties": {
+        "spot": {
+          "$ref": "#/$defs/Spot"
+        },
+        "amount": {
+          "type": "integer"
+        },
+        "step": {
+          "type": "integer"
+        },
+        "low": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "high": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "removable": {
+          "type": "boolean"
+        },
+        "working": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "spot",
+        "amount",
+        "step",
+        "low",
+        "high",
+        "removable",
+        "working"
+      ],
+      "title": "SpotView",
+      "type": "object"
+    },
+    "State": {
+      "additionalProperties": false,
+      "description": "The whole table, sent after every change. Clients replace what they had.",
+      "properties": {
+        "type": {
+          "const": "state",
+          "type": "string"
+        },
+        "v": {
+          "type": "integer"
+        },
+        "token": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        },
+        "reset": {
+          "type": "boolean"
+        },
+        "ack": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bankroll": {
+          "type": "integer"
+        },
+        "point": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "roll": {
+          "type": "integer"
+        },
+        "roll_blocked": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "can_refill": {
+          "type": "boolean"
+        },
+        "spots": {
+          "items": {
+            "$ref": "#/$defs/SpotView"
+          },
+          "type": "array"
+        },
+        "last_roll": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LastRoll"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "v",
+        "token",
+        "table",
+        "reset",
+        "ack",
+        "bankroll",
+        "point",
+        "roll",
+        "roll_blocked",
+        "can_refill",
+        "spots",
+        "last_roll"
+      ],
+      "title": "State",
+      "type": "object"
+    },
+    "Working": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "working",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "number": {
+          "type": "integer"
+        },
+        "working": {
+          "type": "boolean"
+        },
+        "roll": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "number",
+        "working",
+        "roll"
+      ],
+      "title": "Working",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Only for generating the schema: one of each direction.",
+  "properties": {
+    "client": {
+      "discriminator": {
+        "mapping": {
+          "bet": "#/$defs/PlaceBet",
+          "hello": "#/$defs/Hello",
+          "refill": "#/$defs/Refill",
+          "roll": "#/$defs/RollDice",
+          "working": "#/$defs/Working"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Hello"
+        },
+        {
+          "$ref": "#/$defs/PlaceBet"
+        },
+        {
+          "$ref": "#/$defs/Working"
+        },
+        {
+          "$ref": "#/$defs/RollDice"
+        },
+        {
+          "$ref": "#/$defs/Refill"
+        }
+      ]
+    },
+    "server": {
+      "discriminator": {
+        "mapping": {
+          "rejected": "#/$defs/Refused",
+          "state": "#/$defs/State"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/State"
+        },
+        {
+          "$ref": "#/$defs/Refused"
+        }
+      ]
+    }
+  },
+  "required": [
+    "client",
+    "server"
+  ],
+  "title": "Protocol",
+  "type": "object"
+}

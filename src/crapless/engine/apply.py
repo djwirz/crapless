@@ -24,11 +24,11 @@ from crapless.engine.model import (
     Result,
     Seat,
     TableState,
-    come,
     place,
 )
 from crapless.engine.settings import TRUE_ODDS, Settings
 from crapless.engine.settle import settle_roll
+from crapless.engine.spots import check_amount, check_open, is_locked
 
 
 def new_table(settings: Settings | None = None) -> TableState:
@@ -85,17 +85,10 @@ def _join(state: TableState, action: Join) -> TableState:
     return replace(state, seats=(*state.seats, seat), shooter=state.shooter or action.player)
 
 
-def _is_locked(state: TableState, bet: Bet) -> bool:
-    """Pass and Come bets cannot be removed or reduced once they have a point (spec §4)."""
-    if bet.kind is BetKind.PASS:
-        return state.point is not None
-    return bet.kind is BetKind.COME and bet.number is not None
-
-
 def _leave(state: TableState, action: Leave) -> TableState:
     _seated(state, action.player)
     mine = [bet for player, bet in state.bets if player == action.player]
-    if any(_is_locked(state, bet) for bet in mine):
+    if any(is_locked(state, bet) for bet in mine):
         raise Rejected(Rejection.LOCKED, "Your Pass or Come bet has to be decided first.")
 
     # Bets that can be removed leave with the player, as their bankroll does.
@@ -129,11 +122,11 @@ def _set_bet(state: TableState, action: SetBet) -> TableState:
     current = state.bet(player, bet)
     if amount == current:
         return state
-    if current and _is_locked(state, bet):
+    if current and is_locked(state, bet):
         raise Rejected(Rejection.LOCKED, "That bet cannot be changed once it has a point.")
     if amount > 0:
-        _check_allowed_now(state, player, bet)
-        _check_amount(state, player, bet, amount)
+        check_open(state, player, bet)
+        check_amount(state, player, bet, amount)
     if amount - current > seat.bankroll:
         raise Rejected(Rejection.NOT_ENOUGH_CHIPS, "You do not have that many chips.")
 
@@ -156,62 +149,6 @@ def _set_bet(state: TableState, action: SetBet) -> TableState:
 def _number(bet: Bet) -> int:
     assert bet.number is not None
     return bet.number
-
-
-def _flat_for(state: TableState, player: str, odds: Bet) -> int:
-    flat = PASS if odds.kind is BetKind.PASS_ODDS else come(_number(odds))
-    return state.bet(player, flat)
-
-
-def _check_allowed_now(state: TableState, player: str, bet: Bet) -> None:
-    match bet.kind:
-        case BetKind.PASS:
-            if state.point is not None:
-                raise Rejected(Rejection.NOT_NOW, "Pass bets are made on the come-out.")
-        case BetKind.COME:
-            if bet.number is not None:
-                raise Rejected(Rejection.NOT_NOW, "A Come bet moves to a number by being rolled.")
-            if state.point is None:
-                raise Rejected(Rejection.NOT_NOW, "Come bets wait until there is a point.")
-        case BetKind.PASS_ODDS:
-            if state.point is None:
-                raise Rejected(Rejection.NOT_NOW, "Pass odds wait until there is a point.")
-            if not _flat_for(state, player, bet):
-                raise Rejected(Rejection.NO_FLAT_BET, "Odds need a Pass bet behind them.")
-        case BetKind.COME_ODDS:
-            if not _flat_for(state, player, bet):
-                raise Rejected(Rejection.NO_FLAT_BET, "Odds need a Come bet on that number.")
-        case BetKind.PLACE:
-            pass
-        case _:
-            assert_never(bet.kind)
-
-
-def _check_amount(state: TableState, player: str, bet: Bet, amount: int) -> None:
-    settings = state.settings
-    if bet.kind is BetKind.PASS_ODDS:
-        assert state.point is not None
-        unit = TRUE_ODDS[state.point].denominator
-    elif bet.kind is BetKind.COME_ODDS:
-        unit = TRUE_ODDS[_number(bet)].denominator
-    elif bet.kind is BetKind.PLACE:
-        unit = settings.place_pays[_number(bet)].denominator
-    else:
-        unit = 1
-
-    # Never round (ADR 0006): a bet that cannot be paid exactly is refused.
-    if amount % unit:
-        raise Rejected(Rejection.UNEVEN_AMOUNT, f"This bet goes in multiples of {unit}.")
-
-    if bet.kind in (BetKind.PASS_ODDS, BetKind.COME_ODDS):
-        most = settings.odds_multiple * _flat_for(state, player, bet)
-        if amount > most:
-            raise Rejected(Rejection.ABOVE_MAXIMUM, f"The most odds here is {most}.")
-        return
-    if amount < settings.min_bet:
-        raise Rejected(Rejection.BELOW_MINIMUM, f"The minimum bet is {settings.min_bet}.")
-    if amount > settings.max_bet:
-        raise Rejected(Rejection.ABOVE_MAXIMUM, f"The maximum bet is {settings.max_bet}.")
 
 
 def _set_working(state: TableState, action: SetWorking) -> TableState:

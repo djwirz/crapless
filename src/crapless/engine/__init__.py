@@ -33,6 +33,7 @@ from crapless.engine.model import (
     place,
 )
 from crapless.engine.settings import DEFAULT_PLACE_PAYS, TRUE_ODDS, Settings
+from crapless.engine.spots import SpotOptions, spot_options
 
 __all__ = [
     "COME",
@@ -58,10 +59,12 @@ __all__ = [
     "SetWorking",
     "Settings",
     "Settlement",
+    "SpotOptions",
     "TableState",
     "apply",
     "come",
     "come_odds",
     "new_table",
     "place",
+    "spot_options",
 ]

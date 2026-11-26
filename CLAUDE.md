@@ -7,7 +7,7 @@ Slices 1 and 2 of spec §9 are built: the rules engine (`src/crapless/engine/`),
 
 **Next:** slice 3 (look and feel), in plan mode.
 
-**Checks:** `uv run ruff check`, `uv run ruff format --check`, `uv run mypy`, `uv run pytest`; in `web/`, `npm run typecheck`, `npm test`, `npm run build`. After changing a protocol message, regenerate (see `docs/protocol.md`).
+**Checks:** `uv run ruff check`, `uv run ruff format --check`, `uv run mypy`, `uv run pytest`; in `web/`, `npm run typecheck`, `npm test`, `npm run build`, `npm run e2e`. When the page's look changes, re-record `docs/demo.gif` with `npm run demo:gif`. After changing a protocol message, regenerate (see `docs/protocol.md`).
 
 ## How we work
 - Pull requests only. Never push to `main`. Merged PRs are the project's record.

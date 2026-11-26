@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "allowImportingTsExtensions": true
+  },
+  "include": ["**/*.ts", "../scripts/*.ts", "../playwright.config.ts"]
+}

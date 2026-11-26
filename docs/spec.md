@@ -97,7 +97,9 @@ Structured logs with table, seat and roll ids. Counts of open tables, rolls, rej
 2. **One player on a phone:** FastAPI and the protocol, a plain page that can play a full turn, deployed.
 3. **Look and feel:** the table layout, chips, the dice throw and clear win and loss feedback, judged on a real phone.
 4. **Shared table:** join by link, seats, shooter rotation, reconnects, the end-to-end test.
-5. **Finish:** logs and counts, free chip refill polish, README GIF and case-study notes.
+5. **Finish:** logs and counts, free chip refill polish, case-study notes.
+
+A scripted browser hand (one player, fixed dice) runs in CI from slice 2 and records the README GIF. Slice 3 re-records it, and slice 4 grows it into the two-player end-to-end test.
 
 A table of one is solo play, so there's no separate solo mode.
 

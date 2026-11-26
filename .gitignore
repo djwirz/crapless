@@ -16,3 +16,5 @@ build/
 *.log
 *.sqlite3
 .hypothesis/
+test-results/
+playwright-report/

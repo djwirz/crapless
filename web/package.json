@@ -5,15 +5,19 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p e2e",
     "test": "vitest run",
-    "types": "json2ts -i protocol.schema.json -o src/protocol.gen.ts --unreachableDefinitions --additionalProperties false"
+    "types": "json2ts -i protocol.schema.json -o src/protocol.gen.ts --unreachableDefinitions --additionalProperties false",
+    "e2e": "playwright test",
+    "demo:gif": "node scripts/demo-gif.ts"
   },
   "dependencies": {
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/node": "^22.20.7",
     "@types/react": "^19.3.3",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",

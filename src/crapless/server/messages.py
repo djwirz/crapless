@@ -146,6 +146,8 @@ class State(Message):
     token: str
     table: str
     """The code for the invite link. A secret."""
+    ref: str
+    """The table's id in the logs, for matching a complaint to a line. Lets nobody join."""
     you: str
     """Your seat id."""
     notice: str | None
@@ -160,6 +162,8 @@ class State(Message):
     wait_ms: int
     """How long the shooter's Roll is still held after someone else's bet."""
     can_refill: bool
+    low_on_chips: bool
+    """Too few for the smallest bet."""
     can_pass: bool
     leave_blocked: str | None
     players: list[PlayerView]

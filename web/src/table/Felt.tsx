@@ -158,7 +158,23 @@ export function Felt({ table: newest, live, busy: waiting, refusal, send }: Prop
             −
           </text>
         </Button>
-        {CHIPS.map((value, i) => {
+        {/* Too few chips to bet: the chips give way to the free refill. */}
+        {table.low_on_chips && (
+          <Button
+            x={at.RAIL.x + 70}
+            y={at.RAIL.y}
+            width={274}
+            height={at.RAIL.height}
+            label="Refill chips"
+            className="refill"
+            onPress={busy || !table.can_refill ? null : () => send({ type: "refill" })}
+          >
+            <text x={at.RAIL.x + 207} y={at.RAIL.y + 25} dy="0.35em">
+              REFILL CHIPS · FREE
+            </text>
+          </Button>
+        )}
+        {!table.low_on_chips && CHIPS.map((value, i) => {
           const x = at.RAIL.x + 70 * (i + 1);
           return (
             <Button

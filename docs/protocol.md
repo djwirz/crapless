@@ -39,6 +39,7 @@ A seat has one connection. A newer one takes it over and the older is closed. A 
 |---|---|
 | `token` | Keep this to come back to the seat. It is a secret. |
 | `table` | The code for the invite link. Also a secret. |
+| `ref` | The table's id in the server's logs, for reporting a problem. It lets nobody join. |
 | `you` | Your seat id. |
 | `notice` | Something to show once, or `null`. |
 | `ack` | The `id` this answers, or `null` when someone else changed the table. |
@@ -46,6 +47,7 @@ A seat has one connection. A newer one takes it over and the older is closed. A 
 | `roll_blocked` | Why you cannot roll now, or `null`. |
 | `wait_ms` | For the shooter, how long Roll is still held after another's bet. |
 | `can_refill`, `can_pass` | Whether those would do anything. |
+| `low_on_chips` | Too few for the smallest bet. |
 | `leave_blocked` | Why you cannot leave now, or `null`. |
 | `players` | In the order the dice go round: `seat`, `name`, `color` (0 to 7), `bankroll`, `away`, `shooter`, and `net` for the last roll. |
 | `spots` | Your spots: `amount`, `step`, `low` and `high` (the smallest and largest total allowed now, or `null`), `removable`, and `working` for a Place bet that is up. The client needs no rules of its own. |

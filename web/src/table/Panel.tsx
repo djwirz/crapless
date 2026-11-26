@@ -78,6 +78,11 @@ export function Panel({ table, busy, send, close }: Props) {
         </button>
       </div>
       {table.leave_blocked && <p>{table.leave_blocked}</p>}
+      {/* To find this table's rolls in the server's logs (docs/runbook.md). */}
+      <p className="ref">
+        Table ref {table.ref}
+        {table.roll > 0 && ` · last roll #${table.roll - 1}`}
+      </p>
       <button className="close" onClick={close}>
         Back to the table
       </button>

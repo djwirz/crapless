@@ -37,7 +37,7 @@ Sources: [Maryland standard rules for crapless craps, v1.1](https://www.mdgaming
 - Chips are whole numbers. A bet must be a multiple that pays out evenly (Place 6 or 8 in sixes), or it is rejected with a reason. Nothing is rounded (ADR 0006).
 - Pass, Come and Place bets: minimum 5, maximum 500. Where 5 is not a valid multiple, the effective minimum is the next one up (6 on Place 6, 8 on Place 3).
 - Odds: up to 3 times the flat bet, on every number.
-- A seat starts with 1000 chips. A free refill tops the bankroll back up to that.
+- A seat starts with 1000 chips. A free refill tops the bankroll back up to that. With less than the minimum bet in hand, the table offers it in place of the chips.
 - Place pays default to the table above. Some casinos pay 2 and 12, or 3 and 11, differently. Odds always pay true odds.
 
 **Table flow:**
@@ -88,7 +88,7 @@ Sources: [Maryland standard rules for crapless craps, v1.1](https://www.mdgaming
 - **Host:** Render's free tier, deployed from `main` after CI passes (ADR 0009).
 
 ## 7. Observability
-Structured logs with table, seat and roll ids. Counts of open tables, rolls, rejected messages, disconnects and errors. No names in logs above debug level.
+Structured logs with table, seat and roll ids. Counts since the last restart of tables, players, seats taken, rolls, rejected requests, disconnects and errors: on a public `/stats` page, and in a summary line every five minutes while anyone is connected. No names in logs above debug level. The players panel shows the table's log id and last roll number, so a disputed roll can be found ([runbook](runbook.md)).
 
 ## 8. Testing and CI
 - **Unit:** every bet, every total, on and off the come-out.

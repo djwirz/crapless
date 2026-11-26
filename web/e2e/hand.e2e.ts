@@ -158,6 +158,34 @@ test("two players, a shooter turn each", async ({ browser }) => {
   }
 });
 
+test("a player with too few chips is offered a free refill", async ({ browser }) => {
+  const { context, page } = await sit(browser, "Cy");
+  await page.getByRole("group", { name: "Chip" }).getByRole("button", { name: "100" }).tap();
+  // Put the whole bankroll on the table, without rolling.
+  for (const [spot, amount] of [
+    ["Pass", "pass-null"],
+    ["Place 4", "place-4"],
+  ] as const) {
+    for (let total = 100; total <= 500; total += 100) {
+      await page.getByRole("button", { name: `Add chips to ${spot}`, exact: true }).tap();
+      await expect(page.getByTestId(`amount-${amount}`)).toHaveText(`${total}`);
+    }
+  }
+  await expect(page.getByTestId("bankroll")).toHaveText("0");
+  const refill = page.getByRole("button", { name: "Refill chips" });
+  expect((await refill.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  // Bets can still be taken down while the refill is on offer.
+  await expect(page.getByRole("button", { name: "Take chips off", exact: true })).toBeVisible();
+
+  await refill.tap();
+  await expect(page.getByTestId("bankroll")).toHaveText("1000");
+  await expect(refill).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Players" }).tap();
+  await expect(page.getByRole("dialog")).toContainText(/Table ref [\w-]{8}/);
+  await context.close();
+});
+
 // Small phones, with the browser's bars taking their share of the height.
 for (const viewport of [
   { width: 360, height: 560 },

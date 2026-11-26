@@ -2,6 +2,7 @@
 
 import json
 import runpy
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from itertools import count
@@ -573,6 +574,105 @@ def test_logs_explain_a_roll_and_never_hold_secrets_or_names(
     assert roll["bankrolls"] == {"p1": 1010}
     for secret in (token, code, "Zebedee"):
         assert secret not in caplog.text
+
+
+def test_low_chips_and_the_table_ref(client: TestClient, tables: Tables) -> None:
+    with seated(client, "Ana") as [ana]:
+        [table] = list(tables)
+        assert ana.state["ref"] == table.id != ana.state["table"]
+        ana.bet(PASS, 500)
+        assert not ana.state["low_on_chips"]
+        ana.bet(spot("place", 4), 500)
+        assert ana.state["low_on_chips"] and ana.state["can_refill"]
+        ana.ask(type="refill")
+        assert not ana.state["low_on_chips"]
+
+
+def test_counts_add_up_since_the_server_started(
+    client: TestClient, tables: Tables, dice: Dice, clock: Clock
+) -> None:
+    dice.next = [(3, 4)]
+    with seated(client, "Ana") as [ana]:
+        with client.websocket_connect("/ws") as socket:
+            Player(socket, "Bo", ana.state["table"])
+        ana.see(lambda s: any(p["away"] for p in s["players"]))
+        ana.bet(PASS, 10)
+        ana.bet(spot("place", 6), 7)  # refused
+        ana.ask(type="roll")
+        clock.now += 90
+        assert tables.stats() == {
+            "uptime_seconds": 90,
+            "tables_open": 1,
+            "players_connected": 1,
+            "tables_created": 1,
+            "joined": 2,
+            "rolls": 1,
+            "rejected": 1,
+            "disconnects": 1,
+            "errors": 0,
+        }
+
+
+def test_the_stats_page_shows_totals_and_no_secrets(client: TestClient) -> None:
+    with seated(client, "Zebedee") as [player]:
+        page = client.get("/stats")
+        assert page.status_code == 200
+        assert "<th>Players connected</th><td>1</td>" in page.text
+        for secret in (
+            "Zebedee",
+            player.state["token"],
+            player.state["table"],
+            player.state["ref"],
+        ):
+            assert secret not in page.text
+
+
+def test_a_summary_is_logged_only_while_someone_is_here(
+    dice: Dice, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    clock = Clock()
+    app = server.create_app(
+        dice=dice,
+        tables=Tables(clock=clock),
+        static=tmp_path / "none",
+        tick_seconds=0.01,
+        summary_seconds=300,
+    )
+
+    def summaries() -> list[dict[str, Any]]:
+        lines = [json.loads(r.message) for r in caplog.records if r.message.startswith("{")]
+        return [line for line in lines if line["event"] == "summary"]
+
+    with caplog.at_level("INFO", logger="crapless"), TestClient(app) as client:
+        clock.now += 300
+        time.sleep(0.1)
+        assert summaries() == []
+        with seated(client, "Ana"):
+            clock.now += 300
+            deadline = time.monotonic() + 5
+            while not summaries() and time.monotonic() < deadline:
+                time.sleep(0.01)
+    assert [line["players_connected"] for line in summaries()] == [1]
+
+
+def test_a_fault_while_ticking_is_counted_and_ticking_goes_on(
+    dice: Dice, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tables = Tables()
+    calls = []
+
+    def broken() -> list[Any]:
+        calls.append(1)
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(tables, "tick", broken)
+    app = server.create_app(dice=dice, tables=tables, static=tmp_path / "x", tick_seconds=0.01)
+    with TestClient(app):
+        deadline = time.monotonic() + 5
+        while len(calls) < 3 and time.monotonic() < deadline:
+            time.sleep(0.01)
+    assert len(calls) >= 3
+    assert tables.stats()["errors"] >= 3
 
 
 def test_dice_are_fair_enough_to_show_every_face() -> None:

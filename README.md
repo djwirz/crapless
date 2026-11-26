@@ -2,9 +2,9 @@
 
 A crapless craps table you can open on your phone and play with friends: join by link, take a seat, pass the dice. Play money only. Nothing is sold and nothing can be won.
 
-![A craps table on a phone screen shared by two players: one sets a point of 6 and bets odds, Come and Place, sevens out, and the dice move to the other player](docs/demo.gif)
+![Two phone screens side by side: Ana invites, Bo opens the link and sits down, both bet and see the same dice, Ana sevens out and the dice move to Bo](docs/demo.gif)
 
-One of two phones at a table, played by a script against the real server. The dice are fixed for the recording; in play the server rolls them. Re-recorded by `npm run demo:gif --prefix web`.
+Two phones at one table, played by a script against the real server: Ana invites, Bo joins, and each takes a turn with the dice. The dice are fixed for the recording; in play the server rolls them. Re-recorded by `npm run demo:gif --prefix web`.
 
 **Play it:** https://crapless.onrender.com. The first visit after a quiet spell can take about a minute while the server wakes, and the table starts over.
 

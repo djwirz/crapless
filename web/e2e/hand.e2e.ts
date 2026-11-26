@@ -1,15 +1,18 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { type Browser, type BrowserContext, type Page, expect, test } from "@playwright/test";
 
 const recording = process.env["DEMO_GIF"] === "1";
 const SIZE = { width: 390, height: 640 };
-const VIDEO = resolve(import.meta.dirname, "../test-results/demo/hand.webm");
+// The two recordings, and how long after the first the second phone appears.
+const DEMO = resolve(import.meta.dirname, "../test-results/demo");
 
 interface Seat {
   context: BrowserContext;
   page: Page;
   errors: string[];
+  /** When the page, and so its recording, began. */
+  opened: number;
 }
 
 async function sit(browser: Browser, name: string, link = "/", record = false): Promise<Seat> {
@@ -18,36 +21,55 @@ async function sit(browser: Browser, name: string, link = "/", record = false): 
     isMobile: true,
     hasTouch: true,
     colorScheme: "dark",
-    ...(record ? { recordVideo: { dir: resolve(VIDEO, ".."), size: SIZE } } : {}),
+    ...(record ? { recordVideo: { dir: DEMO, size: SIZE } } : {}),
   });
   const page = await context.newPage();
+  const opened = Date.now();
   if (record) await showTaps(page);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(link);
-  await page.getByRole("textbox", { name: "Your name" }).fill(name);
+  const field = page.getByRole("textbox", { name: "Your name" });
+  if (record) {
+    await page.waitForTimeout(900);
+    await field.pressSequentially(name, { delay: 180 });
+    await page.waitForTimeout(500);
+  } else await field.fill(name);
   await page.getByRole("button", { name: "Sit down" }).tap();
   await expect(page.getByTestId("bankroll")).toHaveText("1000");
-  return { context, page, errors };
+  return { context, page, errors, opened };
 }
 
 // Two phones at one table, each taking a full turn with the dice (spec §8).
 test("two players, a shooter turn each", async ({ browser }) => {
   test.setTimeout(120_000);
   const ana = await sit(browser, "Ana", "/", recording);
-  await expect(ana.page).toHaveURL(/#t=[\w-]{12,}$/);
-  const bo = await sit(browser, "Bo", ana.page.url());
   const a = ana.page;
-  const b = bo.page;
+  await expect(a).toHaveURL(/#t=[\w-]{12,}$/);
   // Only the recording lingers, so that a person can follow it.
   const pause = (ms: number) => (recording ? a.waitForTimeout(ms) : Promise.resolve());
+
+  // Ana invites; Bo opens the link the panel shows.
+  await pause(900);
+  await a.getByRole("button", { name: "Players" }).tap();
+  const panel = a.getByRole("dialog", { name: "Players" });
+  await pause(900);
+  await panel.getByRole("button", { name: "Invite" }).tap();
+  const link = await panel.getByRole("textbox").inputValue();
+  expect(link).toBe(a.url());
+  await pause(1_800);
+  const bo = await sit(browser, "Bo", link, recording);
+  const b = bo.page;
+  await expect(panel).toContainText("Bo");
+  await pause(1_800);
+  await panel.getByRole("button", { name: "Back to the table" }).tap();
 
   const chip = (page: Page, value: number) =>
     page.getByRole("group", { name: "Chip" }).getByRole("button", { name: `${value}`, exact: true });
   const add = async (page: Page, spot: string, amount: string, total: number) => {
     await page.getByRole("button", { name: `Add chips to ${spot}`, exact: true }).tap();
     await expect(page.getByTestId(`amount-${amount}`)).toHaveText(`${total}`);
-    if (page === a) await pause(450);
+    await pause(450);
   };
   const rollButton = (page: Page) => page.getByRole("button", { name: "Roll", exact: true });
   // Both phones see the same dice, and neither bankroll moves until they have landed.
@@ -61,7 +83,7 @@ test("two players, a shooter turn each", async ({ browser }) => {
       await expect(page.getByTestId("result")).toHaveText(result);
       await expect(page.getByTestId("point")).toHaveText(point);
     }
-    await pause(1_900);
+    await pause(1_500);
   };
   const bankrolls = async (anas: number, bos: number) => {
     await expect(a.getByTestId("bankroll")).toHaveText(`${anas}`);
@@ -88,11 +110,13 @@ test("two players, a shooter turn each", async ({ browser }) => {
   await roll(a, /^5 \+ 4 = 9$/, "Point 6", true);
 
   // Coming back finds the seat and the chips, and does not throw the dice again.
-  await b.reload();
-  await expect(b.getByTestId("bankroll")).toHaveText("990");
-  await expect(b.getByTestId("amount-place-5")).toHaveText("5");
-  await expect(b.getByTestId("result")).not.toHaveText("…");
-  await expect(b.getByTestId("banner")).toHaveCount(0);
+  if (!recording) {
+    await b.reload();
+    await expect(b.getByTestId("bankroll")).toHaveText("990");
+    await expect(b.getByTestId("amount-place-5")).toHaveText("5");
+    await expect(b.getByTestId("result")).not.toHaveText("…");
+    await expect(b.getByTestId("banner")).toHaveCount(0);
+  }
 
   await chip(a, 25).tap();
   await add(a, "Come 9 odds", "come_odds-9", 26);
@@ -118,18 +142,19 @@ test("two players, a shooter turn each", async ({ browser }) => {
   await expect(a.getByRole("button", { name: "Players" })).toContainText("Your dice · 2");
 
   await a.getByRole("button", { name: "Players" }).tap();
-  const panel = a.getByRole("dialog", { name: "Players" });
-  await expect(panel).toContainText("Bo");
   await expect(panel).toContainText("985");
   await pause(2_500);
 
   expect([...ana.errors, ...bo.errors]).toEqual([]);
-  const video = a.video();
+  const videos = [a.video(), b.video()];
   await ana.context.close();
   await bo.context.close();
-  if (video) {
-    mkdirSync(resolve(VIDEO, ".."), { recursive: true });
-    await video.saveAs(VIDEO);
+  if (recording) {
+    mkdirSync(DEMO, { recursive: true });
+    await videos[0]!.saveAs(resolve(DEMO, "ana.webm"));
+    await videos[1]!.saveAs(resolve(DEMO, "bo.webm"));
+    const joined = (bo.opened - ana.opened) / 1000;
+    writeFileSync(resolve(DEMO, "timing.json"), JSON.stringify({ joined }));
   }
 });
 

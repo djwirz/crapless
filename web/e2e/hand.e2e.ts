@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { type Browser, type BrowserContext, type Page, expect, test } from "@playwright/test";
+import { looks } from "./looks.ts";
 
 const recording = process.env["DEMO_GIF"] === "1";
 const SIZE = { width: 390, height: 640 };
@@ -34,6 +35,7 @@ async function sit(
   link = "/",
   record = false,
   typed = record,
+  arrived?: (page: Page) => Promise<void>,
 ): Promise<Seat> {
   const context = await browser.newContext({
     viewport: SIZE,
@@ -49,6 +51,7 @@ async function sit(
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(link);
   const field = page.getByRole("textbox", { name: "Your name" });
+  await arrived?.(page);
   if (typed) {
     await page.waitForTimeout(900);
     await field.pressSequentially(name, { delay: 180 });
@@ -62,7 +65,10 @@ async function sit(
 // Two phones at one table, each taking a full turn with the dice (spec §8).
 test("two players, a shooter turn each", async ({ browser }) => {
   test.setTimeout(120_000);
-  const ana = await sit(browser, "Ana", "/", recording);
+  const look = looks("table", recording);
+  const ana = await sit(browser, "Ana", "/", recording, recording, (page) =>
+    look.see("the name screen", page.locator("#root")),
+  );
   const a = ana.page;
   await expect(a).toHaveURL(/#t=[\w-]{12,}$/);
   // Only the recording lingers, so that a person can follow it.
@@ -76,6 +82,7 @@ test("two players, a shooter turn each", async ({ browser }) => {
   await panel.getByRole("button", { name: "Invite" }).tap();
   const link = await panel.getByRole("textbox").inputValue();
   expect(link).toBe(a.url());
+  await look.see("Ana alone, inviting", panel);
   await pause(1_800);
   const bo = await sit(browser, "Bo", link, recording);
   const b = bo.page;
@@ -102,6 +109,10 @@ test("two players, a shooter turn each", async ({ browser }) => {
       await expect(page.getByTestId("result")).toHaveText(result);
       await expect(page.getByTestId("point")).toHaveText(point);
     }
+    // Just after the dice land nothing is waiting on a clock, so the screens are the same
+    // every time.
+    await look.see(`Ana after ${result.source}`, a.locator("#root"));
+    await look.see(`Bo after ${result.source}`, b.locator("#root"));
     await pause(1_500);
   };
   const bankrolls = async (anas: number, bos: number) => {
@@ -162,9 +173,11 @@ test("two players, a shooter turn each", async ({ browser }) => {
 
   await a.getByRole("button", { name: "Players" }).tap();
   await expect(panel).toContainText("985");
+  await look.see("the players at the end", panel);
   await pause(2_500);
 
   expect([...ana.errors, ...bo.errors]).toEqual([]);
+  look.check();
   if (recording) await saveRecordings(ana, bo);
   else {
     await ana.context.close();
@@ -202,6 +215,7 @@ test("a player with too few chips is offered a free refill", async ({ browser })
 
 test("pedantic mode is told to the table and lowers the smallest bet", async ({ browser }) => {
   test.setTimeout(60_000);
+  const look = looks("pedantic", recording);
   // Its recording starts at the table: joining is what the other one shows.
   const ana = await sit(browser, "Ana", "/", recording, false);
   const bo = await sit(browser, "Bo", ana.page.url(), recording, false);
@@ -215,12 +229,16 @@ test("pedantic mode is told to the table and lowers the smallest bet", async ({ 
   await pause(1_500);
   await players(b).tap();
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await look.see("the switch, off", panel(b));
   await pause(1_800);
   await toggle.tap();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   for (const page of [a, b]) {
     await expect(page.getByText("Pedantic mode enabled for Bo")).toBeVisible();
   }
+  await expect(toggle).toBeEnabled();
+  await look.see("the switch, on", panel(b));
+  await look.see("what Ana is told", a.locator("#root"));
   // Gone by itself, without a tap.
   await pause(2_000);
   await back.tap();
@@ -231,6 +249,7 @@ test("pedantic mode is told to the table and lowers the smallest bet", async ({ 
   await pause(900);
   await three.tap();
   await expect(b.getByTestId("amount-place-3")).toHaveText("4");
+  await look.see("4 on the 3", b.locator("#root"));
   await pause(2_000);
 
   // Switching off leaves the small bet up. The recording skips this and goes on to the rules.
@@ -254,9 +273,11 @@ test("pedantic mode is told to the table and lowers the smallest bet", async ({ 
   );
   await expect(heading).toBeInViewport();
   await expect(rules.getByText("Switch it on from the top button")).toBeInViewport({ ratio: 1 });
+  await look.see("the rules", rules);
   await pause(7_000);
 
   expect([...ana.errors, ...bo.errors]).toEqual([]);
+  look.check();
   if (recording) await saveRecordings(ana, bo);
   else {
     await ana.context.close();

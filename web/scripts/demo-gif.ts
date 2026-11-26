@@ -29,7 +29,8 @@ if (unknown.length) {
 }
 const names = (asked.length ? asked : Object.keys(GIFS)) as (keyof typeof GIFS)[];
 
-function record({ test, file }: { test: string; file: string }): void {
+function record(name: keyof typeof GIFS): void {
+  const { test, file } = GIFS[name];
   // Playwright empties test-results first, so each recording starts clean.
   execFileSync("npx", ["playwright", "test", "--grep", test], {
     cwd: web,
@@ -63,7 +64,10 @@ function record({ test, file }: { test: string; file: string }): void {
 
   mkdirSync(resolve(root, "docs"), { recursive: true });
   copyFileSync(resolve(work, "demo/out.gif"), resolve(root, file));
+  // What the page looked like in this GIF, for the browser tests to compare with.
+  mkdirSync(resolve(web, "e2e/looks"), { recursive: true });
+  copyFileSync(resolve(work, "demo/look.html"), resolve(web, `e2e/looks/${name}.html`));
   console.log(`${file}: ${(statSync(resolve(root, file)).size / 1e6).toFixed(1)} MB`);
 }
 
-for (const name of names) record(GIFS[name]);
+for (const name of names) record(name);

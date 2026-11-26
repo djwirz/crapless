@@ -49,7 +49,7 @@ cd web && npx playwright install chromium
 npm run e2e --prefix web
 ```
 
-To re-record both GIFs after the page changes (needs Docker):
+The browser tests compare the screens each GIF shows with how they looked when it was recorded (`web/e2e/looks/`), and fail when they differ. To re-record both GIFs (needs Docker):
 
 ```bash
 npm run demo:gif --prefix web

@@ -2,13 +2,13 @@
 
 A crapless craps table you can open on your phone and play with friends: join by link, take a seat, pass the dice. Play money only. Nothing is sold and nothing can be won.
 
-![On a phone screen: a Pass bet sets the point at 6, odds, Come and Place bets go up, the Come bet moves to 9 and wins, and the point is made](docs/demo.gif)
+![A craps table on a phone screen: a Pass bet sets the point at 6, odds, Come and Place bets go up, the dice tumble, the Come bet moves to 9 and wins, and the point is made](docs/demo.gif)
 
 One hand on a phone-sized screen, played by a script against the real server. The dice are fixed for the recording; in play the server rolls them. Re-recorded by `npm run demo:gif --prefix web`.
 
 **Play it:** https://crapless.onrender.com. The first visit after a quiet spell can take about a minute while the server wakes, and your table starts over.
 
-**Status:** one player can play on a plain page; the table look and shared tables come next. Design: [docs/spec.md](docs/spec.md), [docs/protocol.md](docs/protocol.md) and [docs/adr/](docs/adr/).
+**Status:** one player can play at the table; shared tables come next. Design: [docs/spec.md](docs/spec.md), [docs/protocol.md](docs/protocol.md) and [docs/adr/](docs/adr/).
 
 ## Development
 Needs [uv](https://docs.astral.sh/uv/) and Node 22.

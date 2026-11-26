@@ -1,46 +1,62 @@
-/* Only enough to be usable one-handed. The table look is slice 3. */
+/* Classic casino: green felt, cream lettering, colored chips. */
 :root {
-  color-scheme: light dark;
-  font-family: system-ui, sans-serif;
+  --felt: #0b5a39;
+  --felt-dark: #06382a;
+  --cream: #f3ead2;
+  --gold: #e8c15a;
+  --wood: #2a180d;
+  color-scheme: dark;
+  font-family: Georgia, "Times New Roman", serif;
 }
-body {
+html,
+body,
+#root {
   margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--wood);
+  color: var(--cream);
 }
 main {
-  max-width: 30rem;
-  margin: 0 auto;
-  padding: 0 16px 16px;
+  position: relative;
+  box-sizing: border-box;
+  height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
 }
-h1 {
-  font-size: 1.25rem;
-  margin: 12px 0 0;
+.felt {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
-h2 {
-  font-size: 1rem;
-}
-.small {
-  font-size: 0.85rem;
-}
+
+/* Messages sit over the table. */
 .banner {
-  border: 2px solid;
+  position: absolute;
+  inset: 56px 16px auto;
+  z-index: 1;
+  margin: 0;
+  padding: 10px 14px;
+  border: 2px solid var(--gold);
   border-radius: 8px;
-  padding: 8px 12px;
+  background: var(--felt-dark);
+  font-size: 0.95rem;
 }
-button {
-  font: inherit;
-  min-width: 44px;
+/* A notice with nothing to press lets taps through to the table. */
+.passing {
+  pointer-events: none;
+}
+.banner button {
   min-height: 44px;
-  touch-action: manipulation;
+  font: inherit;
 }
-button[aria-pressed="true"] {
-  font-weight: bold;
-  outline: 3px solid;
-}
-/* Over the page, and only after a moment, so a quick reconnect moves nothing. */
+/* Only after a moment, so a quick reconnect shows nothing. */
 .connecting {
-  position: fixed;
-  inset: 8px 16px auto;
-  background: Canvas;
   opacity: 0;
   animation: appear 0s 1s forwards;
   pointer-events: none;
@@ -50,63 +66,289 @@ button[aria-pressed="true"] {
     opacity: 1;
   }
 }
-.status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+
+/* The felt */
+.cloth {
+  fill: var(--felt);
 }
-/* A fixed height, so a long list of results never moves the bets under a thumb. */
-.last {
-  height: 8rem;
-  overflow-y: auto;
+text {
+  fill: var(--cream);
+  text-anchor: middle;
+  font-variant-numeric: lining-nums;
 }
-.dice {
-  font-size: 1.75rem;
-  margin: 4px 0;
+.status .caption,
+.status .big {
+  text-anchor: start;
 }
-.chips {
-  display: flex;
-  gap: 8px;
+.status .end {
+  text-anchor: end;
 }
-.spot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+.caption {
+  font-size: 11px;
+  letter-spacing: 2px;
+  opacity: 0.75;
 }
-.spot .name {
-  flex: 1;
-}
-.spot.held .name,
-.spot.held .amount {
+.big {
+  font-size: 24px;
   font-weight: bold;
 }
-.spot .amount {
-  min-width: 3rem;
-  text-align: right;
+.line {
+  fill: none;
+  stroke: var(--cream);
+  stroke-width: 1.5;
 }
-.spot label {
-  font-size: 0.8rem;
-}
-footer {
-  position: sticky;
-  bottom: 0;
-  background: Canvas;
-  padding-bottom: env(safe-area-inset-bottom);
-}
-.summary {
+.number {
+  /* Georgia's figures sit at uneven heights, which reads badly in a row of numbers. */
+  font-family: system-ui, sans-serif;
+  font-size: 28px;
   font-weight: bold;
-  border-top: 1px solid;
-  padding-top: 4px;
+  fill: var(--gold);
 }
-footer p {
-  min-height: 1.2em;
-  margin: 4px 0;
+.number.small {
+  font-size: 17px;
 }
-.roll {
-  width: 100%;
-  min-height: 56px;
-  font-size: 1.25rem;
+.tag {
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+.felt-word {
+  font-size: 22px;
+  letter-spacing: 6px;
+}
+.felt-word.small {
+  font-size: 15px;
+  letter-spacing: 2px;
+}
+.result {
+  font-size: 17px;
+  font-weight: bold;
+}
+.fine {
+  font-size: 9px;
+  opacity: 0.7;
+}
+.hint {
+  font-size: 13px;
+  font-style: italic;
+}
+.hint.refusal {
+  fill: var(--gold);
+  font-style: normal;
+  font-weight: bold;
+}
+
+/* Things that can be pressed */
+.button {
+  cursor: pointer;
+  outline: none;
+}
+.button[aria-disabled="true"] {
+  cursor: default;
+}
+.button .area {
+  fill: transparent;
+}
+.button:focus-visible .area {
+  stroke: var(--gold);
+  stroke-width: 3;
+}
+.spot:active:not([aria-disabled="true"]) .area {
+  fill: rgb(255 255 255 / 14%);
+}
+.bar .area {
+  stroke: var(--cream);
+  stroke-width: 1.5;
+}
+/* A spot the rules have closed looks closed: dashed and faint. */
+.bar.closed .area {
+  stroke-dasharray: 4 4;
+  opacity: 0.45;
+}
+.bar.closed .felt-word {
+  opacity: 0.45;
+}
+.come-zone .area {
+  fill: var(--felt-dark);
+}
+.switch[aria-pressed="true"] .area {
+  fill: rgb(232 193 90 / 25%);
+  stroke: var(--gold);
+  stroke-width: 3;
+}
+.rail .area {
+  fill: var(--felt-dark);
+}
+.rail[aria-pressed="true"] .area {
+  stroke: var(--gold);
+  stroke-width: 3;
+}
+.minus {
+  font-size: 34px;
+}
+.roll .area {
+  fill: var(--gold);
+}
+.roll text {
+  fill: var(--wood);
+  font-size: 22px;
+  font-weight: bold;
+  letter-spacing: 6px;
+}
+.roll[aria-disabled="true"] {
+  opacity: 0.35;
+}
+.plain text {
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+/* Chips, puck and dice */
+.chip {
+  pointer-events: none;
+}
+.chip circle {
+  stroke: rgb(0 0 0 / 45%);
+}
+.chip .edge {
+  fill: none;
+  stroke: rgb(255 255 255 / 85%);
+  stroke-width: 2.5;
+  stroke-dasharray: 4 4;
+}
+.chip text {
+  fill: #fff;
+  font-family: system-ui, sans-serif;
+  font-weight: bold;
+}
+.chip-1 > circle:first-child {
+  fill: #ded8c6;
+}
+.chip-1 text {
+  fill: #111;
+}
+.chip-1 .edge {
+  stroke: #555;
+}
+.chip-5 > circle:first-child {
+  fill: #b3202c;
+}
+.chip-25 > circle:first-child {
+  fill: #1d6fb8;
+}
+.chip-100 > circle:first-child {
+  fill: #151515;
+}
+.puck circle {
+  fill: #fff;
+  stroke: #000;
+}
+.puck text {
+  fill: #000;
+  font: bold 9px system-ui, sans-serif;
+}
+.die rect {
+  fill: #c62232;
+  stroke: #7c0f1a;
+}
+.die circle {
+  fill: #fff;
+}
+.dice .area {
+  fill: transparent;
+}
+
+/* The throw */
+.tumbling .die {
+  animation: tumble 0.2s linear infinite;
+}
+@keyframes tumble {
+  0% {
+    transform: translate(0, 0) rotate(0);
+  }
+  50% {
+    transform: translate(3px, -14px) rotate(180deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(360deg);
+  }
+}
+
+/* Results. Winnings drop toward you, losses lift away toward the house. */
+.results {
+  pointer-events: none;
+}
+.mark rect {
+  fill: var(--cream);
+  stroke: #000;
+}
+.mark text {
+  fill: #111;
+  font: bold 13px system-ui, sans-serif;
+}
+.mark.win rect {
+  fill: var(--gold);
+}
+.mark.lose rect {
+  fill: #3a0d12;
+  stroke: #fff;
+  stroke-dasharray: 3 2;
+}
+.mark.lose text {
+  fill: #fff;
+}
+.mark.win {
+  animation: toward-you 0.5s ease-out;
+}
+.mark.lose {
+  animation: away 0.5s ease-out;
+}
+@keyframes toward-you {
+  from {
+    transform: translateY(-22px);
+    opacity: 0;
+  }
+}
+@keyframes away {
+  from {
+    transform: translateY(22px);
+    opacity: 0;
+  }
+}
+/* The banner shouts, then gets out of the way of the numbers. */
+.shout {
+  animation: shout 2s forwards;
+}
+.shout rect {
+  fill: var(--wood);
+  stroke: var(--gold);
+  stroke-width: 2;
+}
+.shout text {
+  font-size: 20px;
+  font-weight: bold;
+}
+@keyframes shout {
+  0% {
+    opacity: 0;
+  }
+  10%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.spoken {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mark,
+  .tumbling .die {
+    animation: none;
+  }
 }

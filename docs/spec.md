@@ -36,8 +36,10 @@ Sources: [Maryland standard rules for crapless craps, v1.1](https://www.mdgaming
 **Chips and limits** (the limits and payouts are table settings):
 - Chips are whole numbers. A bet must be a multiple that pays out evenly (Place 6 or 8 in sixes), or it is rejected with a reason. Nothing is rounded (ADR 0006).
 - Pass, Come and Place bets: minimum 5, maximum 500. Where 5 is not a valid multiple, the effective minimum is the next one up (6 on Place 6, 8 on Place 3).
+- **Pedantic mode** (ADR 0010): a switch each player has for their own seat. While it is on, their Place minimum is 4, so Place 2, 3, 11 and 12 can start at 4. Their other minimums, every multiple and every pay are as before. Switching it off leaves a smaller bet up, to pay or lose as usual; it can be taken down, and any other change must reach the usual minimum.
+- Everyone at the table is told "Pedantic mode enabled for" or "disabled for" that player's name, and the players list shows who has it on.
 - Odds: up to 3 times the flat bet, on every number.
-- A seat starts with 1000 chips. A free refill tops the bankroll back up to that. With less than the minimum bet in hand, the table offers it in place of the chips.
+- A seat starts with 1000 chips. A free refill tops the bankroll back up to that. With less than that player's minimum bet in hand, the table offers it in place of the chips.
 - Place pays default to the table above. Some casinos pay 2 and 12, or 3 and 11, differently. Odds always pay true odds.
 
 **Table flow:**
@@ -85,11 +87,11 @@ Sources: [Maryland standard rules for crapless craps, v1.1](https://www.mdgaming
 - **Front end:** React and TypeScript built with Vite, with an SVG table from slice 3. It draws the state and sends intents. The server says what may be bet on each spot, so the page holds no rules, and the server checks everything again.
 - **Table:** one portrait screen with nothing to scroll. Pick a chip and tap a spot; a − switch takes chips off. On a come-out the Come bar switches Place bets on or off. Tap Roll or flick up on the dice. The bankroll and chips change only when the dice land, wins and losses are written out as well as colored, and reduced motion skips the animation.
 - **How to play:** a button beside the dice, and on the name screen, opens a short account of the rules and the table. A test checks its pays and limits against the engine.
-- **Others:** a button at the top names the shooter and opens the list of players, with invite, pass, leave and refill. Others' bets show as small dots with their initial, without amounts.
+- **Others:** a button at the top names the shooter and opens the list of players, with invite, pass, leave, refill and the pedantic mode switch. News of a switch shows over whatever is open for a few seconds. Others' bets show as small dots with their initial, without amounts.
 - **Host:** Render's free tier, deployed from `main` after CI passes (ADR 0009).
 
 ## 7. Observability
-Structured logs with table, seat and roll ids. Counts since the last restart of tables, players, seats taken, rolls, rejected requests, disconnects and errors: on a public `/stats` page, and in a summary line every five minutes while anyone is connected. No names in logs above debug level. The players panel shows the table's log id and last roll number, so a disputed roll can be found ([runbook](runbook.md)).
+Structured logs with table, seat and roll ids. Counts since the last restart of tables, players, seats taken, rolls, rejected requests, disconnects and errors: on a public `/stats` page, and in a summary line every five minutes while anyone is connected. A switch of pedantic mode is logged with the seat. No names in logs above debug level. The players panel shows the table's log id and last roll number, so a disputed roll can be found ([runbook](runbook.md)).
 
 ## 8. Testing and CI
 - **Unit:** every bet, every total, on and off the come-out.

@@ -21,6 +21,19 @@ describe("the + and − buttons", () => {
     expect(raised(spot({ amount: 12 }), 5)).toBe(18);
   });
 
+  it("put the pedantic minimum down with the 1 chip, and a step more with the 5", () => {
+    const three = spot({ spot: { kind: "place", number: 3 }, step: 4, low: 4 });
+    expect(raised(three, 1)).toBe(4);
+    expect(raised(three, 5)).toBe(8);
+    expect(lowered({ ...three, amount: 8, removable: true }, 1)).toBe(4);
+  });
+
+  it("take a small bet left from pedantic mode down, or raise it to the usual minimum", () => {
+    const left = spot({ spot: { kind: "place", number: 3 }, step: 4, low: 8, amount: 4 });
+    expect(raised(left, 1)).toBe(8);
+    expect(lowered({ ...left, removable: true }, 1)).toBe(0);
+  });
+
   it("stay inside the limits", () => {
     expect(raised(spot({ amount: 480 }), 100)).toBe(498);
     expect(raised(spot({ amount: 498 }), 5)).toBeNull();

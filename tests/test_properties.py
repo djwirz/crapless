@@ -20,6 +20,7 @@ from crapless.engine import (
     Result,
     Roll,
     SetBet,
+    SetPedantic,
     Settings,
     SetWorking,
     TableState,
@@ -73,6 +74,7 @@ class Table(RuleBasedStateMachine):
             event(f"rejected: {rejected.code}")
             return None
         self.state = result.state
+        self.check_pedantic(before, action, result.state)
         self.check_settlements(before, action, result)
         self.check_repeat(action, result.state)
         return result
@@ -103,13 +105,22 @@ class Table(RuleBasedStateMachine):
         assert result.settlements == ()
         assert result.state.roll_number == before.roll_number
 
+    def check_pedantic(self, before: TableState, action: Action, after: TableState) -> None:
+        """Only the player's own switch changes their setting."""
+        was = {s.player: s.pedantic for s in before.seats}
+        for seat in after.seats:
+            if isinstance(action, SetPedantic) and action.player == seat.player:
+                assert seat.pedantic is action.on
+            else:
+                assert seat.pedantic is was.get(seat.player, False)
+
     def check_repeat(self, action: Action, after: TableState) -> None:
         """The same message again either changes nothing or is refused."""
         try:
             again = apply(after, action)
         except Rejected:
             # Setting a total or a switch, or refilling, is never refused the second time.
-            assert not isinstance(action, SetBet | SetWorking | Refill)
+            assert not isinstance(action, SetBet | SetWorking | SetPedantic | Refill)
             return
         assert not isinstance(action, Roll), "a roll was settled twice"
         assert again.state == after
@@ -126,6 +137,22 @@ class Table(RuleBasedStateMachine):
     @rule(player=PLAYERS)
     def refill(self, player: str) -> None:
         self.do(Refill(player))
+
+    @rule(player=PLAYERS, on=st.booleans())
+    def set_pedantic(self, player: str, on: bool) -> None:
+        self.do(SetPedantic(player, on))
+
+    @rule(data=st.data(), number=st.sampled_from([2, 3, 11, 12]), off=st.booleans())
+    def make_a_small_place_bet(self, data: st.DataObject, number: int, off: bool) -> None:
+        """A bet under the usual minimum, sometimes left up after switching back."""
+        if not self.state.seats:
+            return
+        player = data.draw(st.sampled_from([s.player for s in self.state.seats]))
+        self.do(SetPedantic(player, True))
+        if self.do(SetBet(player, place(number), 4, self.state.roll_number)):
+            event("small place bet")
+        if off:
+            self.do(SetPedantic(player, False))
 
     @rule(player=PLAYERS, spot=SPOTS, amount=AMOUNTS, offset=OFFSET)
     def set_any_bet(self, player: str, spot: Bet, amount: int, offset: int) -> None:
@@ -209,7 +236,17 @@ class Table(RuleBasedStateMachine):
         state = self.state
         for seat in state.seats:
             held = [b for p, b in state.bets if p == seat.player]
-            for spot in {PASS, PASS_ODDS, COME, place(3), place(6), come(8), come_odds(8), *held}:
+            for spot in {
+                PASS,
+                PASS_ODDS,
+                COME,
+                place(2),
+                place(3),
+                place(6),
+                come(8),
+                come_odds(8),
+                *held,
+            }:
                 options = spot_options(state, seat.player, spot)
                 low, high, step = options.low, options.high, options.step
 

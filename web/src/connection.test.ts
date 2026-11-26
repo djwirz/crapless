@@ -21,12 +21,13 @@ class FakeSocket implements Socket {
 
 const state = (change: Partial<State> = {}): State => ({
   type: "state",
-  v: 2,
+  v: 3,
   token: "secret",
   table: "the-table",
   you: "p1",
   ref: "abc123",
   notice: null,
+  announcement: null,
   ack: null,
   bankroll: 1000,
   point: null,
@@ -75,7 +76,7 @@ afterEach(() => vi.useRealTimers());
 describe("Connection", () => {
   it("says hello, keeps the seat and asks for it next time", () => {
     join();
-    const hello = { type: "hello", v: 2, name: "Ana" };
+    const hello = { type: "hello", v: 3, name: "Ana" };
     expect(latest().sent[0]).toEqual({ ...hello, table: null, token: null });
     expect(kept.get(seatKey("the-table"))).toBe("secret");
     expect(kept.get(TABLE_KEY)).toBe("the-table");
@@ -160,6 +161,17 @@ describe("Connection", () => {
     expect(old.closed).toBe(true);
     expect(old.onclose).toBeNull();
     expect(sockets).toHaveLength(2);
+  });
+
+  it("keeps the latest announcement and tells a repeat from a new one", () => {
+    join();
+    expect(connection.snapshot().announcement).toBeNull();
+    latest().says(state({ announcement: "Pedantic mode enabled for Bo" }));
+    latest().says(state());
+    const first = { text: "Pedantic mode enabled for Bo", n: 1 };
+    expect(connection.snapshot().announcement).toEqual(first);
+    latest().says(state({ announcement: "Pedantic mode enabled for Bo" }));
+    expect(connection.snapshot().announcement).toEqual({ ...first, n: 2 });
   });
 
   it("keeps a notice until the player does something", () => {

@@ -83,7 +83,18 @@ def table_bounds(state: TableState, player: str, bet: Bet) -> tuple[int, int]:
     settings = state.settings
     if bet.kind in (BetKind.PASS_ODDS, BetKind.COME_ODDS):
         return 1, settings.odds_multiple * _flat_for(state, player, bet)
+    if bet.kind is BetKind.PLACE:
+        return smallest_bet(state, player), settings.max_bet
     return settings.min_bet, settings.max_bet
+
+
+def smallest_bet(state: TableState, player: str) -> int:
+    """The least this player may put anywhere, before multiples: it is lower in pedantic mode,
+    and only for Place bets."""
+    seat = state.seat(player)
+    if seat is not None and seat.pedantic:
+        return state.settings.pedantic_place_min
+    return state.settings.min_bet
 
 
 def is_open(state: TableState, player: str, bet: Bet) -> bool:

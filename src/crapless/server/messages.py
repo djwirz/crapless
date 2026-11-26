@@ -1,4 +1,4 @@
-"""Protocol version 2 (docs/protocol.md). These models are its one definition (ADR 0008).
+"""Protocol version 3 (docs/protocol.md). These models are its one definition (ADR 0008).
 
 The TypeScript types in `web/src/protocol.gen.ts` are generated from them.
 No field has a default, so every field is required on both sides.
@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from crapless.engine import BetKind, Outcome
 
-VERSION = 2
+VERSION = 3
 
 TableCode = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{12,32}$")]
 Name = Annotated[
@@ -71,6 +71,14 @@ class RollDice(Message):
     roll: RollNumber
 
 
+class Pedantic(Message):
+    """Switch pedantic mode on or off for your own seat."""
+
+    type: Literal["pedantic"]
+    id: MessageId
+    on: bool
+
+
 class Refill(Message):
     type: Literal["refill"]
     id: MessageId
@@ -87,7 +95,7 @@ class Leave(Message):
     id: MessageId
 
 
-Request = PlaceBet | Working | RollDice | Refill | PassDice | Leave
+Request = PlaceBet | Working | RollDice | Pedantic | Refill | PassDice | Leave
 """Anything a seated player may ask for."""
 ClientMessage = Annotated[Hello | Request, Field(discriminator="type")]
 client_message: TypeAdapter[Hello | Request] = TypeAdapter(ClientMessage)
@@ -129,6 +137,7 @@ class PlayerView(Message):
     bankroll: int
     away: bool
     shooter: bool
+    pedantic: bool
     net: int | None
     """Winnings less losses on the last roll, or null if nothing of theirs was decided."""
 
@@ -152,6 +161,8 @@ class State(Message):
     """Your seat id."""
     notice: str | None
     """Something to tell the player once, such as that the table started over."""
+    announcement: str | None
+    """News for the whole table, sent once. Show it for a few seconds."""
     ack: str | None
     """The id of the message this answers."""
     bankroll: int

@@ -51,6 +51,16 @@ main {
 .passing {
   pointer-events: none;
 }
+/* News for the table shows over the players panel too, then goes by itself. */
+.announce {
+  z-index: 4;
+  animation: leave 0s 4s forwards;
+}
+@keyframes leave {
+  to {
+    visibility: hidden;
+  }
+}
 .banner button {
   min-height: 44px;
   font: inherit;
@@ -379,7 +389,6 @@ text {
   z-index: 2;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   gap: 12px;
   box-sizing: border-box;
   padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
@@ -388,6 +397,28 @@ text {
 }
 .join {
   justify-content: center;
+}
+/* Sits at the bottom, and still scrolls to its top when it is taller than the screen, which
+   justify-content: flex-end would not. */
+.sheet {
+  gap: 8px;
+}
+.sheet .body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.sheet .body > * {
+  flex-shrink: 0;
+}
+.sheet .body > :first-child {
+  margin-top: auto;
+}
+.sheet .close {
+  flex-shrink: 0;
 }
 .sheet ul {
   margin: 0;
@@ -398,7 +429,7 @@ text {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 0;
+  padding: 4px 0;
   border-bottom: 1px solid rgb(243 234 210 / 25%);
 }
 .sheet li.away {
@@ -452,6 +483,15 @@ text {
   color: inherit;
   font: inherit;
   font-size: 1rem;
+}
+.sheet button[aria-pressed="true"] {
+  border-color: var(--gold);
+  border-width: 3px;
+  color: var(--gold);
+  font-weight: bold;
+}
+.sheet button small {
+  font-weight: normal;
 }
 .sheet button:disabled,
 .join button:disabled {

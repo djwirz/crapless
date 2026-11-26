@@ -64,6 +64,8 @@ class Seat:
     player: str
     """An opaque id chosen by the caller. Display names are not the engine's business."""
     bankroll: int
+    pedantic: bool = False
+    """Whether this player may make smaller Place bets (ADR 0010)."""
 
 
 @dataclass(frozen=True)

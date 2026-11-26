@@ -2,7 +2,7 @@
 import type * as protocol from "./protocol.gen";
 import type { Refused, State } from "./protocol.gen";
 
-export const VERSION = 2;
+export const VERSION = 3;
 export const TABLE_KEY = "crapless.table";
 export const seatKey = (table: string) => `crapless.seat.${table}`;
 const WRONG_VERSION = 4000;
@@ -15,6 +15,7 @@ export type Intent = Omitted<
   | protocol.PlaceBet
   | protocol.Working
   | protocol.RollDice
+  | protocol.Pedantic
   | protocol.Refill
   | protocol.PassDice
   | protocol.Leave
@@ -44,6 +45,8 @@ export interface View {
   pending: boolean;
   /** Something to tell the player, such as that the table started over. */
   notice: string | null;
+  /** The latest news for the whole table. `n` tells one piece from the next. */
+  announcement: { text: string; n: number } | null;
   /** Whether this table followed the one before on the same connection, not a reconnect. */
   live: boolean;
 }
@@ -63,6 +66,7 @@ export class Connection {
     refusal: null,
     pending: false,
     notice: null,
+    announcement: null,
     live: false,
   };
   private socket: Socket | null = null;
@@ -139,11 +143,16 @@ export class Connection {
     this.seatedAt(message.table);
     const live = this.heard;
     this.heard = true;
+    const { announcement } = this.view;
     this.update({
       status: "open",
       table: message,
       pending,
       notice: message.notice ?? this.view.notice,
+      announcement:
+        message.announcement === null
+          ? announcement
+          : { text: message.announcement, n: (announcement?.n ?? 0) + 1 },
       live,
     });
   }

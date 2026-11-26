@@ -186,6 +186,61 @@ test("a player with too few chips is offered a free refill", async ({ browser })
   await context.close();
 });
 
+test("pedantic mode is told to the table and lowers the smallest bet", async ({ browser }) => {
+  const ana = await sit(browser, "Ana");
+  const bo = await sit(browser, "Bo", ana.page.url());
+  const [a, b] = [ana.page, bo.page];
+  const players = (page: Page) => page.getByRole("button", { name: "Players" });
+  const panel = (page: Page) => page.getByRole("dialog", { name: "Players" });
+  const toggle = panel(b).getByRole("button", { name: /^Pedantic mode/ });
+  const back = panel(b).getByRole("button", { name: "Back to the table" });
+
+  await players(b).tap();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await toggle.tap();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  for (const page of [a, b]) {
+    await expect(page.getByText("Pedantic mode enabled for Bo")).toBeVisible();
+  }
+  // Gone by itself, without a tap.
+  await expect(a.getByText("Pedantic mode enabled for Bo")).toBeHidden({ timeout: 8_000 });
+  await back.tap();
+
+  const three = b.getByRole("button", { name: "Add chips to Place 3", exact: true });
+  await b.getByRole("group", { name: "Chip" }).getByRole("button", { name: "1", exact: true }).tap();
+  await three.tap();
+  await expect(b.getByTestId("amount-place-3")).toHaveText("4");
+
+  await players(b).tap();
+  await toggle.tap();
+  await expect(a.getByText("Pedantic mode disabled for Bo")).toBeVisible();
+  await back.tap();
+  await expect(b.getByTestId("amount-place-3")).toHaveText("4");
+
+  expect([...ana.errors, ...bo.errors]).toEqual([]);
+  await ana.context.close();
+  await bo.context.close();
+});
+
+test("a full table's players panel can be scrolled to its first player", async ({ browser }) => {
+  const first = await sit(browser, "Ana");
+  const others = [];
+  for (const name of ["Bo", "Cy", "Dee", "Eli", "Fay", "Gus", "Hal"]) {
+    others.push(await sit(browser, name, first.page.url()));
+  }
+  const page = first.page;
+  await page.setViewportSize({ width: 360, height: 560 });
+  await page.getByRole("button", { name: "Players" }).tap();
+  const players = page.getByRole("dialog", { name: "Players" }).getByRole("listitem");
+  await expect(players).toHaveCount(8);
+  const back = page.getByRole("button", { name: "Back to the table" });
+  await expect(back).toBeInViewport({ ratio: 1 });
+  await players.first().scrollIntoViewIfNeeded();
+  await expect(players.first()).toBeInViewport({ ratio: 1 });
+  await expect(back).toBeInViewport({ ratio: 1 });
+  for (const seat of [first, ...others]) await seat.context.close();
+});
+
 test("how to play can be read before and after sitting down", async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 360, height: 560 } });
   const page = await context.newPage();
@@ -253,6 +308,9 @@ for (const viewport of [
     const panel = page.getByRole("dialog", { name: "Players" });
     await panel.getByRole("button", { name: "Invite" }).tap();
     await expect(panel.getByRole("textbox")).toHaveValue(/#t=[\w-]{12,}$/);
+    const switcher = panel.getByRole("button", { name: /^Pedantic mode/ });
+    await switcher.scrollIntoViewIfNeeded();
+    expect((await switcher.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await context.close();
   });
 }

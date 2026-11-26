@@ -1,4 +1,4 @@
-# Protocol, version 2
+# Protocol, version 3
 
 One WebSocket at `/ws`, carrying one JSON object per text message. The definition is the Pydantic models in `src/crapless/server/messages.py` (ADR 0008). `web/protocol.schema.json` and `web/src/protocol.gen.ts` are generated from them:
 
@@ -8,8 +8,10 @@ uv run python scripts/protocol_schema.py && npm run types --prefix web
 
 Every field is always present (`null` where there is no value), and unknown fields are refused.
 
+Version 3 added the `pedantic` request, `announcement` and each player's `pedantic`.
+
 ## A connection
-1. The client sends `hello`: `v: 2`, a display `name` (1 to 12 characters), the `table` code from the link (or `null` for a new table) and the seat `token` it kept for that table (or `null`).
+1. The client sends `hello`: `v: 3`, a display `name` (1 to 12 characters), the `table` code from the link (or `null` for a new table) and the seat `token` it kept for that table (or `null`).
 2. The server answers with `state`. A code it does not know opens a table under that code. A token it does not know gets a new seat, with a `notice` saying why.
 3. The client sends one request at a time and waits for the answer.
 4. The server sends each seated player a new `state` whenever anything at the table changes.
@@ -24,6 +26,7 @@ A seat has one connection. A newer one takes it over and the older is closed. A 
 | `working` | `id`, `number`, `working`, `roll` | Turn a Place bet on or off for the come-out. |
 | `roll` | `id`, `roll` | Roll the dice. Shooter only. |
 | `pass` | `id`, `roll` | Pass the dice to the left. Shooter only. |
+| `pedantic` | `id`, `on` | Switch pedantic mode on or off for your own seat (ADR 0010). |
 | `refill` | `id` | Top the bankroll back up. |
 | `leave` | `id` | Give up the seat. The server closes with 4002. |
 
@@ -42,14 +45,15 @@ A seat has one connection. A newer one takes it over and the older is closed. A 
 | `ref` | The table's id in the server's logs, for reporting a problem. It lets nobody join. |
 | `you` | Your seat id. |
 | `notice` | Something to show once, or `null`. |
+| `announcement` | News for the whole table, or `null`: for now, that a player switched pedantic mode. Sent once, to those connected. Show it for a few seconds. |
 | `ack` | The `id` this answers, or `null` when someone else changed the table. |
 | `bankroll`, `point`, `roll` | `point` is `null` on a come-out. |
 | `roll_blocked` | Why you cannot roll now, or `null`. |
 | `wait_ms` | For the shooter, how long Roll is still held after another's bet. |
 | `can_refill`, `can_pass` | Whether those would do anything. |
-| `low_on_chips` | Too few for the smallest bet. |
+| `low_on_chips` | Too few for your smallest bet. |
 | `leave_blocked` | Why you cannot leave now, or `null`. |
-| `players` | In the order the dice go round: `seat`, `name`, `color` (0 to 7), `bankroll`, `away`, `shooter`, and `net` for the last roll. |
+| `players` | In the order the dice go round: `seat`, `name`, `color` (0 to 7), `bankroll`, `away`, `shooter`, `pedantic`, and `net` for the last roll. |
 | `spots` | Your spots: `amount`, `step`, `low` and `high` (the smallest and largest total allowed now, or `null`), `removable`, and `working` for a Place bet that is up. The client needs no rules of its own. |
 | `others` | Where other players have bets: `spot` and `seats`. No amounts. |
 | `last_roll` | `die1`, `die2` and your `settlements` (`spot`, `outcome`, `amount`, `paid`, `returned`), or `null`. |

@@ -92,10 +92,12 @@ class Connection:
 
 
 def broadcast(table: Table, *, asker: Player | None = None, ack: str | None = None) -> None:
-    """Send each connected player their own view."""
+    """Send each connected player their own view, and any news with it."""
+    news = table.take_news()
     for player in table.players.values():
         if isinstance(player.connection, Connection):
-            player.connection.send(table.view(player, ack=ack if player is asker else None))
+            mine = ack if player is asker else None
+            player.connection.send(table.view(player, ack=mine, announcement=news))
 
 
 async def _receive(socket: WebSocket) -> messages.Hello | messages.Request:

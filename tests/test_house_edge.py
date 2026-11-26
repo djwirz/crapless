@@ -21,8 +21,8 @@ from crapless.engine import (
     Join,
     Outcome,
     Roll,
-    Seat,
     SetBet,
+    SetPedantic,
     Settings,
     SetWorking,
     TableState,
@@ -48,7 +48,7 @@ def ready(state: TableState) -> TableState:
     """Level out what does not affect the bet being followed, so the states repeat."""
     state = replace(
         state,
-        seats=tuple(Seat(s.player, 10_000) for s in state.seats),
+        seats=tuple(replace(s, bankroll=10_000) for s in state.seats),
         shooter="ana",
         roll_number=0,
     )
@@ -169,6 +169,12 @@ def test_come_odds_have_no_edge(number: int, working: bool) -> None:
     state = apply(bet(state, COME, STAKE), Roll("ana", *dice(number), 1)).state
     state = bet(state, come_odds(number), STAKE)
     assert edge(state, come_odds(number)) == 0
+
+
+@pytest.mark.parametrize("number", [2, 3, 11, 12])
+def test_the_smallest_pedantic_bet_has_the_same_edge(number: int) -> None:
+    state = apply(seated(), SetPedantic(OTHER, True)).state
+    assert edge(bet(state, place(number), 4), place(number), 4) == PLACE_EDGE[number]
 
 
 def test_the_method_notices_a_wrong_payout() -> None:

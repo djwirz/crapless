@@ -20,7 +20,7 @@ export type Outcome = "win" | "lose" | "returned" | "moved";
  * Only for generating the schema: one of each direction.
  */
 export interface Protocol {
-  client: Hello | PlaceBet | Working | RollDice | Refill | PassDice | Leave;
+  client: Hello | PlaceBet | Working | RollDice | Pedantic | Refill | PassDice | Leave;
   server: State | Refused;
 }
 /**
@@ -76,6 +76,17 @@ export interface RollDice {
   roll: number;
 }
 /**
+ * Switch pedantic mode on or off for your own seat.
+ *
+ * This interface was referenced by `Protocol`'s JSON-Schema
+ * via the `definition` "Pedantic".
+ */
+export interface Pedantic {
+  type: "pedantic";
+  id: string;
+  on: boolean;
+}
+/**
  * This interface was referenced by `Protocol`'s JSON-Schema
  * via the `definition` "Refill".
  */
@@ -114,6 +125,7 @@ export interface State {
   ref: string;
   you: string;
   notice: string | null;
+  announcement: string | null;
   ack: string | null;
   bankroll: number;
   point: number | null;
@@ -140,6 +152,7 @@ export interface PlayerView {
   bankroll: number;
   away: boolean;
   shooter: boolean;
+  pedantic: boolean;
   net: number | null;
 }
 /**

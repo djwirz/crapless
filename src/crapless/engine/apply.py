@@ -13,6 +13,7 @@ from crapless.engine.actions import (
     Refill,
     Roll,
     SetBet,
+    SetPedantic,
     SetWorking,
 )
 from crapless.engine.model import (
@@ -44,6 +45,8 @@ def apply(state: TableState, action: Action) -> Result:
             return Result(_leave(state, action))
         case Refill():
             return Result(_refill(state, action))
+        case SetPedantic():
+            return Result(_set_pedantic(state, action))
         case SetBet():
             return Result(_set_bet(state, action))
         case SetWorking():
@@ -69,7 +72,7 @@ def _current(state: TableState, roll_number: int) -> None:
 
 
 def _with_bankroll(seats: tuple[Seat, ...], player: str, bankroll: int) -> tuple[Seat, ...]:
-    return tuple(Seat(player, bankroll) if s.player == player else s for s in seats)
+    return tuple(replace(s, bankroll=bankroll) if s.player == player else s for s in seats)
 
 
 def left_of(seats: tuple[Seat, ...], player: str) -> str:
@@ -110,6 +113,15 @@ def _refill(state: TableState, action: Refill) -> TableState:
     seat = _seated(state, action.player)
     bankroll = max(seat.bankroll, state.settings.starting_bankroll)
     return replace(state, seats=_with_bankroll(state.seats, action.player, bankroll))
+
+
+def _set_pedantic(state: TableState, action: SetPedantic) -> TableState:
+    # Bets already up are left alone. Only later changes are held to the new minimum.
+    _seated(state, action.player)
+    seats = tuple(
+        replace(s, pedantic=action.on) if s.player == action.player else s for s in state.seats
+    )
+    return replace(state, seats=seats)
 
 
 def _set_bet(state: TableState, action: SetBet) -> TableState:
@@ -187,7 +199,7 @@ def _roll(state: TableState, action: Roll) -> Result:
     returns: dict[str, int] = {}
     for s in settlements:
         returns[s.player] = returns.get(s.player, 0) + s.paid + s.returned
-    seats = tuple(Seat(s.player, s.bankroll + returns.get(s.player, 0)) for s in state.seats)
+    seats = tuple(replace(s, bankroll=s.bankroll + returns.get(s.player, 0)) for s in state.seats)
 
     seven_out = state.point is not None and total == 7
     if state.point is None:

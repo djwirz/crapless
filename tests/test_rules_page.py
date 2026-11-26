@@ -44,5 +44,20 @@ def test_the_quoted_limits_are_the_defaults() -> None:
     settings = Settings()
     assert constant("MIN_BET") == settings.min_bet
     assert constant("MAX_BET") == settings.max_bet
+    assert constant("PEDANTIC_MIN") == settings.pedantic_place_min
     assert constant("ODDS_MULTIPLE") == settings.odds_multiple
     assert not settings.come_odds_on_come_out  # the screen says they are off
+
+
+def test_the_quoted_pedantic_numbers_are_the_ones_it_changes() -> None:
+    page = " ".join((Path(__file__).parent.parent / "web/src/HowToPlay.tsx").read_text().split())
+    assert "Place bets on 2, 3, 11 and 12 can then start at {PEDANTIC_MIN}." in page
+    settings = Settings()
+    changed = {
+        number
+        for number, pays in settings.place_pays.items()
+        # The smallest multiple at or above each minimum.
+        if -(-settings.pedantic_place_min // pays.denominator) * pays.denominator
+        < -(-settings.min_bet // pays.denominator) * pays.denominator
+    }
+    assert changed == {2, 3, 11, 12}

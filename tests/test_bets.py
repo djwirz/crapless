@@ -6,7 +6,18 @@ The expected pays are written out from the table in spec §4, not read from the 
 from fractions import Fraction
 
 import pytest
-from helpers import OTHER, bankroll, bet, come_out, outcome, roll, settled, table, with_point
+from helpers import (
+    OTHER,
+    SHOOTER,
+    bankroll,
+    bet,
+    come_out,
+    outcome,
+    roll,
+    settled,
+    table,
+    with_point,
+)
 
 from crapless.engine import (
     COME,
@@ -14,8 +25,13 @@ from crapless.engine import (
     PASS,
     PASS_ODDS,
     POINT_NUMBERS,
+    Bet,
     Outcome,
+    Refill,
+    Rejected,
+    Rejection,
     SetBet,
+    SetPedantic,
     Settings,
     SetWorking,
     TableState,
@@ -23,6 +39,7 @@ from crapless.engine import (
     come,
     come_odds,
     place,
+    spot_options,
 )
 
 TOTALS = range(2, 13)
@@ -242,3 +259,91 @@ def test_a_lost_place_bet_is_switched_off() -> None:
     state = apply(state, SetWorking(OTHER, 6, True, state.roll_number)).state
 
     assert not come_out(state, 7).state.working
+
+
+def pedantic(state: TableState, on: bool = True, player: str = OTHER) -> TableState:
+    return apply(state, SetPedantic(player, on)).state
+
+
+def refused(state: TableState, what: Bet, amount: int, player: str = OTHER) -> Rejection:
+    with pytest.raises(Rejected) as rejected:
+        bet(state, what, amount, player)
+    return rejected.value.code
+
+
+# number: smallest Place bet, as usual and in pedantic mode
+SMALLEST = {
+    2: (6, 4),
+    3: (8, 4),
+    4: (5, 5),
+    5: (5, 5),
+    6: (6, 6),
+    8: (6, 6),
+    9: (5, 5),
+    10: (5, 5),
+    11: (8, 4),
+    12: (6, 4),
+}
+
+
+@pytest.mark.parametrize("number", POINT_NUMBERS)
+def test_pedantic_mode_lowers_the_smallest_place_bet(number: int) -> None:
+    usual, low = SMALLEST[number]
+    for state, least in ((table(), usual), (pedantic(table()), low)):
+        assert spot_options(state, OTHER, place(number)).low == least
+        assert bet(state, place(number), least).bet(OTHER, place(number)) == least
+
+
+@pytest.mark.parametrize("number", [2, 3, 11, 12])
+def test_pedantic_bets_still_go_in_even_multiples(number: int) -> None:
+    state = pedantic(table())
+    step = DEFAULT_PLACE_PAYS[number].denominator
+    assert refused(state, place(number), 5) is Rejection.UNEVEN_AMOUNT
+    assert bet(state, place(number), 4 + step).bet(OTHER, place(number)) == 4 + step
+
+
+def test_pedantic_mode_leaves_pass_come_and_other_players_alone() -> None:
+    state = pedantic(table())
+    assert spot_options(state, SHOOTER, place(3)).low == 8
+    assert refused(state, place(3), 4, SHOOTER) is Rejection.BELOW_MINIMUM
+    assert spot_options(state, OTHER, PASS).low == 5
+    assert refused(state, PASS, 4) is Rejection.BELOW_MINIMUM
+    assert refused(with_point(state, 6), COME, 4) is Rejection.BELOW_MINIMUM
+
+
+def test_pedantic_mode_lasts_through_bets_rolls_and_refills() -> None:
+    state = bet(pedantic(table()), place(3), 4)
+    state = apply(state, SetWorking(OTHER, 3, True, state.roll_number)).state
+    state = come_out(state, 3).state
+    state = apply(state, Refill(OTHER)).state
+    seat = state.seat(OTHER)
+    assert seat is not None and seat.pedantic
+
+
+def test_a_small_bet_stays_and_pays_after_pedantic_mode_is_off() -> None:
+    state = pedantic(bet(pedantic(table()), place(3), 4), on=False)
+    assert state.bet(OTHER, place(3)) == 4
+
+    options = spot_options(state, OTHER, place(3))
+    assert (options.amount, options.low, options.removable) == (4, 8, True)
+    assert bet(state, place(3), 4) == state  # saying the same again changes nothing
+    assert bet(state, place(3), 8).bet(OTHER, place(3)) == 8
+    assert bet(state, place(3), 0).bet(OTHER, place(3)) == 0
+
+    result = roll(with_point(state, 6), 3)
+    settlement = settled(result, place(3))
+    assert settlement is not None and settlement.paid == 11
+    assert result.state.bet(OTHER, place(3)) == 4
+
+
+def test_a_bigger_bet_cannot_be_lowered_below_the_usual_minimum_once_off() -> None:
+    state = pedantic(bet(pedantic(table()), place(11), 12), on=False)
+    assert refused(state, place(11), 4) is Rejection.BELOW_MINIMUM
+
+
+def test_pedantic_mode_needs_a_seat_and_the_minimum_must_make_sense() -> None:
+    with pytest.raises(Rejected):
+        apply(table(), SetPedantic("nobody", True))
+    for wrong in (0, 6):
+        with pytest.raises(ValueError):
+            Settings(pedantic_place_min=wrong)

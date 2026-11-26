@@ -5,6 +5,8 @@
 export const MIN_BET = 5;
 export const MAX_BET = 500;
 export const ODDS_MULTIPLE = 3;
+/** The smallest Place bet in pedantic mode. */
+export const PEDANTIC_MIN = 4;
 
 /** Per number: what odds pay, what a Place bet pays, and the multiple a Place bet goes in. */
 export const PAYS = [

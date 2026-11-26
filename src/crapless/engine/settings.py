@@ -43,6 +43,8 @@ class Settings:
 
     min_bet: int = 5
     """Smallest Pass, Come or Place bet. Odds have no minimum beyond paying out evenly."""
+    pedantic_place_min: int = 4
+    """Smallest Place bet for a player in pedantic mode (ADR 0010). Multiples still apply."""
     max_bet: int = 500
     """Largest Pass, Come or Place bet. Odds are capped by the multiple instead."""
     odds_multiple: int = 3
@@ -53,6 +55,8 @@ class Settings:
     def __post_init__(self) -> None:
         if not 1 <= self.min_bet <= self.max_bet:
             raise ValueError("limits must satisfy 1 <= min_bet <= max_bet")
+        if not 1 <= self.pedantic_place_min <= self.min_bet:
+            raise ValueError("pedantic_place_min must satisfy 1 <= it <= min_bet")
         if self.odds_multiple < 0:
             raise ValueError("odds_multiple cannot be negative")
         if self.starting_bankroll < 1:

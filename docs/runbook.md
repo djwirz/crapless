@@ -15,7 +15,7 @@
 | `settlements` | What happened to each bet: `outcome`, `amount`, `paid`, `returned`. |
 | `bankrolls` | Every seat's bankroll afterwards. |
 
-Check `settlements` against the rules in [spec §4](spec.md#4-rules-v1). Earlier `bet`, `working`, `refill`, `passed` and `rejected` lines with the same ref show how the table got there. A `rejected` line with `stale_roll` is a bet that arrived after the dice.
+Check `settlements` against the rules in [spec §4](spec.md#4-rules-v1). Earlier `bet`, `working`, `pedantic`, `refill`, `passed` and `rejected` lines with the same ref show how the table got there. A `rejected` line with `stale_roll` is a bet that arrived after the dice. A Place bet of 4 on 2, 3, 11 or 12 means that seat had pedantic mode on when it was made.
 
 **Limits.** Render's [logging docs](https://render.com/docs/logging) (read November 2026) give seven days of retention on the free workspace, and drop lines above a few thousand a minute. They do not say whether logs survive a redeploy or a sleep. This procedure has been checked against the app's log lines, not yet tried in Render's dashboard.
 

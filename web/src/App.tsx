@@ -91,6 +91,13 @@ function Play({ connection }: { connection: Connection }) {
         </p>
       )}
 
+      {/* Keyed, so that each new one starts its few seconds afresh. */}
+      {view.announcement && (
+        <p key={view.announcement.n} role="status" className="banner passing announce">
+          {view.announcement.text}
+        </p>
+      )}
+
       {table && status !== "left" && status !== "full" && (
         <Felt
           table={table}

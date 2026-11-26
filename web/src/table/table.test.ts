@@ -21,18 +21,20 @@ const seat = (change: Partial<PlayerView> = {}): PlayerView => ({
   bankroll: 1000,
   away: false,
   shooter: true,
+  pedantic: false,
   net: null,
   ...change,
 });
 
 const state = (change: Partial<State> = {}): State => ({
   type: "state",
-  v: 2,
+  v: 3,
   token: "s",
   table: "t",
   you: "p1",
   ref: "abc123",
   notice: null,
+  announcement: null,
   ack: "a",
   bankroll: 1000,
   point: null,

@@ -5,6 +5,7 @@ import runpy
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 from itertools import count
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,7 @@ from fastapi.testclient import TestClient
 from starlette.testclient import WebSocketTestSession
 from starlette.websockets import WebSocketDisconnect
 
+from crapless import engine
 from crapless.server import app as server
 from crapless.server import messages
 from crapless.server.tables import (
@@ -64,7 +66,7 @@ class Player:
         token: str | None = None,
     ) -> None:
         self.socket = socket
-        self.send(type="hello", v=2, name=name, table=table, token=token)
+        self.send(type="hello", v=3, name=name, table=table, token=token)
         self.state = self.receive()
 
     def send(self, **message: Any) -> None:
@@ -84,7 +86,7 @@ class Player:
 
     def ask(self, **message: Any) -> dict[str, Any]:
         message.setdefault("id", f"m{next(self.ids)}")
-        if message["type"] not in ("refill", "leave"):
+        if message["type"] not in ("refill", "leave", "pedantic"):
             message.setdefault("roll", self.state["roll"])
         self.send(**message)
         while True:
@@ -263,7 +265,7 @@ def test_a_ninth_player_is_told_the_table_is_full(client: TestClient) -> None:
         code = players[0].state["table"]
         with client.websocket_connect("/ws") as socket:
             socket.send_text(
-                json.dumps({"type": "hello", "v": 2, "name": "x", "table": code, "token": None})
+                json.dumps({"type": "hello", "v": 3, "name": "x", "table": code, "token": None})
             )
             assert closed_with(socket) == server.TABLE_FULL
 
@@ -454,7 +456,7 @@ def test_binary_frames_are_refused(client: TestClient) -> None:
 
 def hello(**change: Any) -> str:
     return json.dumps(
-        {"type": "hello", "v": 2, "name": "Ana", "table": None, "token": None} | change
+        {"type": "hello", "v": 3, "name": "Ana", "table": None, "token": None} | change
     )
 
 
@@ -463,7 +465,8 @@ def hello(**change: Any) -> str:
     [
         ('{"type":"refill","id":"a"}', server.POLICY),
         ('{"type":"hello","v":1,"token":null}', server.WRONG_VERSION),  # last version's page
-        (hello(v=3), server.WRONG_VERSION),
+        (hello(v=2), server.WRONG_VERSION),
+        (hello(v=4), server.WRONG_VERSION),
         (hello(name="   "), server.WRONG_VERSION),
         (hello(name="x" * 13), server.WRONG_VERSION),
         (hello(table="short"), server.WRONG_VERSION),
@@ -692,3 +695,78 @@ def test_the_generated_protocol_files_are_current() -> None:
     """The TypeScript side is checked in CI; this catches a stale schema early."""
     script = runpy.run_path(str(Path(__file__).parent.parent / "scripts" / "protocol_schema.py"))
     assert script["SCHEMA"].read_text() == script["schema_text"]()
+
+
+def smallest(player: Player, where: dict[str, Any]) -> int | None:
+    low: int | None = next(s["low"] for s in player.state["spots"] if s["spot"] == where)
+    return low
+
+
+def test_pedantic_mode_is_announced_once_to_the_whole_table(client: TestClient) -> None:
+    three = spot("place", 3)
+    with seated(client, "Ana", "Bo") as [ana, bo]:
+        assert smallest(bo, three) == 8
+        on = bo.ask(type="pedantic", on=True, id="on")
+        assert on["announcement"] == "Pedantic mode enabled for Bo"
+        assert ana.receive()["announcement"] == "Pedantic mode enabled for Bo"
+        assert ana.at_table("Bo")["pedantic"] and not ana.at_table("Ana")["pedantic"]
+        assert smallest(bo, three) == 4
+        assert smallest(bo, spot("place", 2)) == 4
+        assert smallest(bo, spot("place", 6)) == 6
+        assert smallest(bo, PASS) == 5
+
+        # Sent again, or asking for what is already so: nothing new to say.
+        assert bo.ask(type="pedantic", on=True, id="on")["announcement"] is None
+        assert ana.receive()["announcement"] is None
+        assert bo.ask(type="pedantic", on=True)["announcement"] is None
+        assert ana.receive()["announcement"] is None
+
+        # Someone else's minimum has not moved.
+        assert smallest(ana, three) == 8
+        assert ana.bet(three, 4)["code"] == "below_minimum"
+
+        assert bo.bet(three, 4)["type"] == "state"
+        assert ana.receive()["announcement"] is None
+        off = bo.ask(type="pedantic", on=False)
+        assert off["announcement"] == "Pedantic mode disabled for Bo"
+        assert ana.receive()["announcement"] == "Pedantic mode disabled for Bo"
+        # The small bet stays; changes follow the usual minimum again.
+        assert (bo.amount(three), smallest(bo, three)) == (4, 8)
+
+
+def test_pedantic_mode_comes_back_with_the_seat(client: TestClient) -> None:
+    with seated(client, "Ana") as [ana]:
+        code = ana.state["table"]
+        with client.websocket_connect("/ws") as socket:
+            bo = Player(socket, "Bo", code)
+            bo.ask(type="pedantic", on=True)
+            token = bo.state["token"]
+        ana.see(lambda s: any(p["away"] for p in s["players"]))
+        with client.websocket_connect("/ws") as socket:
+            back = Player(socket, "Bo", code, token)
+            assert back.at_table("Bo")["pedantic"]
+            assert back.state["announcement"] is None
+            assert smallest(back, spot("place", 11)) == 4
+
+
+def test_a_pedantic_player_is_low_on_chips_below_their_own_minimum(tables: Tables) -> None:
+    table, player, _ = tables.sit(None, None, "Ana")
+    table.state = engine.apply(table.state, engine.SetPedantic(player.seat, True)).state
+
+    def holding(bankroll: int) -> bool:
+        table.state = replace(table.state, seats=(engine.Seat(player.seat, bankroll, True),))
+        return table.view(player).low_on_chips
+
+    assert not holding(4)
+    assert holding(3)
+
+
+def test_the_pedantic_log_line_has_no_name(
+    client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level("DEBUG", logger="crapless"), seated(client, "Zebedee") as [player]:
+        player.ask(type="pedantic", on=True)
+    lines = [json.loads(r.message) for r in caplog.records if r.name == "crapless"]
+    [line] = [line for line in lines if line["event"] == "pedantic"]
+    assert (line["seat"], line["on"]) == ("p1", True)
+    assert "Zebedee" not in caplog.text

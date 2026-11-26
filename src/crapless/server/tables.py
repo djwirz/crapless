@@ -99,6 +99,8 @@ class Table:
     dice: tuple[int, int] | None = None
     bet_at: dict[str, float] = field(default_factory=dict)
     seats_given: int = 0
+    news: str | None = None
+    """An announcement waiting for the next broadcast."""
 
     # Seats
 
@@ -198,6 +200,13 @@ class Table:
                     event("working", **where, number=message.number, working=message.working)
                 case messages.RollDice():
                     self._roll(player, message.roll, dice)
+                case messages.Pedantic():
+                    self._apply(engine.SetPedantic(seat, message.on))
+                    # Said once, and only if something changed. The name is never logged.
+                    if self.state != before:
+                        word = "enabled" if message.on else "disabled"
+                        self.news = f"Pedantic mode {word} for {player.name}"
+                        event("pedantic", **where, on=message.on)
                 case messages.Refill():
                     self._apply(engine.Refill(seat))
                     event("refill", **where)
@@ -232,6 +241,10 @@ class Table:
         result = engine.apply(self.state, action)
         self.state = result.state
         return result
+
+    def take_news(self) -> str | None:
+        news, self.news = self.news, None
+        return news
 
     def pause_left(self) -> float:
         """Seconds the shooter must still wait because someone else just bet."""
@@ -295,7 +308,12 @@ class Table:
     # Views
 
     def view(
-        self, player: Player, *, ack: str | None = None, notice: str | None = None
+        self,
+        player: Player,
+        *,
+        ack: str | None = None,
+        notice: str | None = None,
+        announcement: str | None = None,
     ) -> messages.State:
         state, seat = self.state, player.seat
         mine = state.seat(seat)
@@ -347,6 +365,7 @@ class Table:
             ref=self.id,
             you=seat,
             notice=notice,
+            announcement=announcement,
             ack=ack,
             bankroll=mine.bankroll,
             point=state.point,
@@ -354,10 +373,10 @@ class Table:
             roll_blocked=self._roll_blocked(seat),
             wait_ms=round(self.pause_left() * 1000) if shooter else 0,
             can_refill=mine.bankroll < state.settings.starting_bankroll,
-            low_on_chips=mine.bankroll < state.settings.min_bet,
+            low_on_chips=mine.bankroll < engine.smallest_bet(state, seat),
             can_pass=shooter and len(state.seats) > 1,
             leave_blocked=_refusal(state, engine.Leave(seat)),
-            players=[self._player_view(self.players[s.player], s.bankroll) for s in state.seats],
+            players=[self._player_view(self.players[s.player], s) for s in state.seats],
             spots=spots,
             others=[
                 messages.OthersOnSpot(spot=_spot(bet), seats=seats) for bet, seats in others.items()
@@ -365,14 +384,15 @@ class Table:
             last_roll=last_roll,
         )
 
-    def _player_view(self, player: Player, bankroll: int) -> messages.PlayerView:
+    def _player_view(self, player: Player, seat: engine.Seat) -> messages.PlayerView:
         return messages.PlayerView(
             seat=player.seat,
             name=player.name,
             color=player.color,
-            bankroll=bankroll,
+            bankroll=seat.bankroll,
             away=player.connection is None,
             shooter=self.state.shooter == player.seat,
+            pedantic=seat.pedantic,
             net=player.net,
         )
 

@@ -27,6 +27,14 @@ class Refill:
 
 
 @dataclass(frozen=True)
+class SetPedantic:
+    """Switch pedantic mode on or off. A value, not a flip, so a repeat changes nothing."""
+
+    player: str
+    on: bool
+
+
+@dataclass(frozen=True)
 class SetBet:
     """Make the chips on one spot total `amount`. 0 takes the bet down.
 
@@ -63,4 +71,4 @@ class Roll:
     roll_number: int
 
 
-Action = Join | Leave | Refill | SetBet | SetWorking | PassDice | Roll
+Action = Join | Leave | Refill | SetPedantic | SetBet | SetWorking | PassDice | Roll

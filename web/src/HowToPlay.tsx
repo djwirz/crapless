@@ -1,5 +1,5 @@
 /** A short account of the rules and the table, for someone who has not played. */
-import { MAX_BET, MIN_BET, ODDS_MULTIPLE, PAYS } from "./rules";
+import { MAX_BET, MIN_BET, ODDS_MULTIPLE, PAYS, PEDANTIC_MIN } from "./rules";
 
 export function HowToPlay({ close }: { close: () => void }) {
   return (
@@ -70,6 +70,15 @@ export function HowToPlay({ close }: { close: () => void }) {
           Pass, Come and Place bets run from {MIN_BET} to {MAX_BET}. Chips are whole, so some
           bets go in multiples that pay out exactly. Odds on 5 or 9 go in 2s, and on 6 or 8 in
           5s.
+        </p>
+
+        <h3>Pedantic mode</h3>
+        <p>
+          Switch it on from the top button.
+          Place bets on 2, 3, 11 and 12 can then start at {PEDANTIC_MIN}.
+          Pick the 1 chip to bet that little. Pays do not change, and everyone is told when you
+          switch it on or off. A small bet stays up after you switch it off, but changing it
+          follows the usual minimums.
         </p>
 
         <h3>This table</h3>

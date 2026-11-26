@@ -164,6 +164,31 @@
       "title": "PassDice",
       "type": "object"
     },
+    "Pedantic": {
+      "additionalProperties": false,
+      "description": "Switch pedantic mode on or off for your own seat.",
+      "properties": {
+        "type": {
+          "const": "pedantic",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "on": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "on"
+      ],
+      "title": "Pedantic",
+      "type": "object"
+    },
     "PlaceBet": {
       "additionalProperties": false,
       "properties": {
@@ -220,6 +245,9 @@
         "shooter": {
           "type": "boolean"
         },
+        "pedantic": {
+          "type": "boolean"
+        },
         "net": {
           "anyOf": [
             {
@@ -238,6 +266,7 @@
         "bankroll",
         "away",
         "shooter",
+        "pedantic",
         "net"
       ],
       "title": "PlayerView",
@@ -465,6 +494,16 @@
             }
           ]
         },
+        "announcement": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "ack": {
           "anyOf": [
             {
@@ -560,6 +599,7 @@
         "ref",
         "you",
         "notice",
+        "announcement",
         "ack",
         "bankroll",
         "point",
@@ -622,6 +662,7 @@
           "hello": "#/$defs/Hello",
           "leave": "#/$defs/Leave",
           "pass": "#/$defs/PassDice",
+          "pedantic": "#/$defs/Pedantic",
           "refill": "#/$defs/Refill",
           "roll": "#/$defs/RollDice",
           "working": "#/$defs/Working"
@@ -640,6 +681,9 @@
         },
         {
           "$ref": "#/$defs/RollDice"
+        },
+        {
+          "$ref": "#/$defs/Pedantic"
         },
         {
           "$ref": "#/$defs/Refill"

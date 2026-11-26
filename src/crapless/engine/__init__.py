@@ -11,6 +11,7 @@ from crapless.engine.actions import (
     Refill,
     Roll,
     SetBet,
+    SetPedantic,
     SetWorking,
 )
 from crapless.engine.apply import apply, new_table
@@ -33,7 +34,7 @@ from crapless.engine.model import (
     place,
 )
 from crapless.engine.settings import DEFAULT_PLACE_PAYS, TRUE_ODDS, Settings
-from crapless.engine.spots import SpotOptions, spot_options
+from crapless.engine.spots import SpotOptions, smallest_bet, spot_options
 
 __all__ = [
     "COME",
@@ -56,6 +57,7 @@ __all__ = [
     "Roll",
     "Seat",
     "SetBet",
+    "SetPedantic",
     "SetWorking",
     "Settings",
     "Settlement",
@@ -66,5 +68,6 @@ __all__ = [
     "come_odds",
     "new_table",
     "place",
+    "smallest_bet",
     "spot_options",
 ]

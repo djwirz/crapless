@@ -3,7 +3,7 @@
 A phone-first web game of crapless craps for a few friends at a shared table, with a rotating shooter and play money. A for-fun project, built properly. Use they/them for Dan.
 
 ## Status
-Slices 1 and 2 of spec §9 are built: the rules engine (`src/crapless/engine/`), the server (`src/crapless/server/`, protocol in `docs/protocol.md`) and a plain page for one player (`web/`). Deploying needs the Render service in `render.yaml` to be connected, which only Dan can do. The judgment behind the project is in `docs/artifact-spec.md`.
+Slices 1 and 2 of spec §9 are built: the rules engine (`src/crapless/engine/`), the server (`src/crapless/server/`, protocol in `docs/protocol.md`) and a plain page for one player (`web/`). It is live at https://crapless.onrender.com on Render's free tier, set up from `render.yaml` (ADR 0009). Not yet judged on a real phone. The judgment behind the project is in `docs/artifact-spec.md`.
 
 **Next:** slice 3 (look and feel), in plan mode.
 

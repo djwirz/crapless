@@ -6,6 +6,8 @@ A crapless craps table you can open on your phone and play with friends: join by
 
 One hand on a phone-sized screen, played by a script against the real server. The dice are fixed for the recording; in play the server rolls them. Re-recorded by `npm run demo:gif --prefix web`.
 
+**Play it:** https://crapless.onrender.com. The first visit after a quiet spell can take about a minute while the server wakes, and your table starts over.
+
 **Status:** one player can play on a plain page; the table look and shared tables come next. Design: [docs/spec.md](docs/spec.md), [docs/protocol.md](docs/protocol.md) and [docs/adr/](docs/adr/).
 
 ## Development

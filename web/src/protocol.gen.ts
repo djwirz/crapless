@@ -111,6 +111,7 @@ export interface State {
   v: number;
   token: string;
   table: string;
+  ref: string;
   you: string;
   notice: string | null;
   ack: string | null;
@@ -120,6 +121,7 @@ export interface State {
   roll_blocked: string | null;
   wait_ms: number;
   can_refill: boolean;
+  low_on_chips: boolean;
   can_pass: boolean;
   leave_blocked: string | null;
   players: PlayerView[];

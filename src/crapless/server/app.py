@@ -9,10 +9,12 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from crapless.server import messages
+from crapless.server.stats import page as stats_page
 from crapless.server.tables import (
     Bucket,
     Busy,
@@ -32,6 +34,7 @@ MAX_CONNECTIONS = 200
 BURST = 30
 PER_SECOND = 10.0
 QUEUE = 64
+SUMMARY_SECONDS = 300.0
 
 # WebSocket close codes. 4000 and up are ours; docs/protocol.md lists them.
 UNSUPPORTED_DATA = 1003
@@ -116,16 +119,29 @@ def create_app(
     tables: Tables | None = None,
     static: Path | None = None,
     tick_seconds: float = 1.0,
+    summary_seconds: float = SUMMARY_SECONDS,
 ) -> FastAPI:
     _log_to_stdout()
     registry = tables if tables is not None else Tables()
     open_sockets: set[WebSocket] = set()
 
     async def tick() -> None:
+        summarised = registry.clock()
         while True:
             await asyncio.sleep(tick_seconds)
-            for table in registry.tick():
-                broadcast(table)
+            try:
+                for table in registry.tick():
+                    broadcast(table)
+                if registry.clock() - summarised >= summary_seconds:
+                    summarised = registry.clock()
+                    stats = registry.stats()
+                    # Quiet while nobody is here, so an idle server says nothing.
+                    if stats["players_connected"]:
+                        event("summary", **stats)
+            except Exception:
+                # Keep ticking: one bad table must not stop the dice moving at the others.
+                registry.counts["errors"] += 1
+                log.exception("error while ticking")
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -134,6 +150,10 @@ def create_app(
         task.cancel()
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+
+    @app.get("/stats", response_class=HTMLResponse)
+    async def stats() -> str:
+        return stats_page(registry.stats())
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -215,8 +235,11 @@ def create_app(
                 with suppress(RuntimeError, WebSocketDisconnect):
                     await socket.close(close.code, close.reason)
         except WebSocketDisconnect:
+            if player:
+                registry.counts["disconnects"] += 1
             event("disconnected", table=table and table.id, seat=player and player.seat)
         except Exception:
+            registry.counts["errors"] += 1
             log.exception("error on table %s", table and table.id)
             raise
         finally:

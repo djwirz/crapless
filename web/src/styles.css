@@ -185,6 +185,15 @@ text {
 .minus {
   font-size: 34px;
 }
+.refill .area {
+  fill: var(--gold);
+}
+.refill text {
+  fill: var(--wood);
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
 .roll .area {
   fill: var(--gold);
 }
@@ -419,6 +428,12 @@ text {
 .sheet p {
   margin: 0;
   font-size: 0.85rem;
+}
+/* Selectable, so it can be copied into a message. */
+.sheet .ref {
+  text-align: center;
+  opacity: 0.7;
+  user-select: text;
 }
 .actions {
   display: grid;

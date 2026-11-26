@@ -8,7 +8,7 @@ Two phones at one table, played by a script against the real server: Ana invites
 
 **Play it:** https://crapless.onrender.com. The first visit after a quiet spell can take about a minute while the server wakes, and the table starts over.
 
-**Status:** up to eight players share a table by link. Logs, counts and polish come next. Design: [docs/spec.md](docs/spec.md), [docs/protocol.md](docs/protocol.md) and [docs/adr/](docs/adr/).
+**Status:** v1 is built: up to eight players share a table by link. [Case study](docs/case-study.md) · [runbook](docs/runbook.md) · [stats](https://crapless.onrender.com/stats). Design: [docs/spec.md](docs/spec.md), [docs/protocol.md](docs/protocol.md) and [docs/adr/](docs/adr/).
 
 ## Development
 Needs [uv](https://docs.astral.sh/uv/) and Node 22.

@@ -8,7 +8,7 @@ import json
 import logging
 import secrets
 import time
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass, field
 
@@ -67,6 +67,10 @@ class Bucket:
         return True
 
 
+COUNTED = ("tables_created", "joined", "rolls", "rejected", "disconnects", "errors")
+"""Counted since the server started (spec §7). They are lost with everything else on restart."""
+
+
 @dataclass
 class Player:
     seat: str
@@ -88,6 +92,8 @@ class Table:
     """For logs. Not the code, which would let a reader of the logs join."""
     clock: Clock
     last_seen: float
+    counts: Counter[str] = field(default_factory=Counter)
+    """Shared by every table on the server."""
     state: engine.TableState = field(default_factory=engine.new_table)
     players: dict[str, Player] = field(default_factory=dict)
     dice: tuple[int, int] | None = None
@@ -105,6 +111,7 @@ class Table:
         player = Player(seat, name.strip(), secrets.token_urlsafe(32), color)
         self._apply(engine.Join(seat))
         self.players[seat] = player
+        self.counts["joined"] += 1
         event("joined", table=self.id, seat=seat, seats=len(self.players))
         return player
 
@@ -202,11 +209,13 @@ class Table:
                     del self.players[seat]
                     event("left", **where)
         except engine.Rejected as rejected:
+            self.counts["rejected"] += 1
             event("rejected", **where, code=rejected.code)
             return messages.Refused(
                 type="rejected", id=message.id, code=rejected.code, reason=rejected.reason
             )
         except _StillBetting:
+            self.counts["rejected"] += 1
             event("rejected", **where, code="still_betting")
             return messages.Refused(
                 type="rejected",
@@ -240,6 +249,7 @@ class Table:
         result = self._apply(engine.Roll(action_for, die1, die2, roll_number))
         self.dice = die1, die2
         self.bet_at.clear()
+        self.counts["rolls"] += 1
         for other in self.players.values():
             mine = [s for s in result.settlements if s.player == other.seat]
             other.settlements = [
@@ -334,6 +344,7 @@ class Table:
             v=messages.VERSION,
             token=player.token,
             table=self.code,
+            ref=self.id,
             you=seat,
             notice=notice,
             ack=ack,
@@ -343,6 +354,7 @@ class Table:
             roll_blocked=self._roll_blocked(seat),
             wait_ms=round(self.pause_left() * 1000) if shooter else 0,
             can_refill=mine.bankroll < state.settings.starting_bankroll,
+            low_on_chips=mine.bankroll < state.settings.min_bet,
             can_pass=shooter and len(state.seats) > 1,
             leave_blocked=_refusal(state, engine.Leave(seat)),
             players=[self._player_view(self.players[s.player], s.bankroll) for s in state.seats],
@@ -407,6 +419,8 @@ class Tables:
         self.idle_seconds = idle_seconds
         self.clock = clock
         self._by_code: dict[str, Table] = {}
+        self.counts: Counter[str] = Counter()
+        self.started = clock()
         # Across everyone: new seats are limited, since each takes memory.
         self.joins = Bucket(burst=40, per_second=0.5, clock=clock)
 
@@ -443,11 +457,27 @@ class Tables:
     def _create(self, code: str) -> Table:
         self._make_room()
         table = Table(
-            code=code, id=secrets.token_urlsafe(6), clock=self.clock, last_seen=self.clock()
+            code=code,
+            id=secrets.token_urlsafe(6),
+            clock=self.clock,
+            last_seen=self.clock(),
+            counts=self.counts,
         )
         self._by_code[code] = table
+        self.counts["tables_created"] += 1
         event("table_created", table=table.id, tables=len(self))
         return table
+
+    def stats(self) -> dict[str, int]:
+        """Totals only: nothing about any one table or player."""
+        return {
+            "uptime_seconds": int(self.clock() - self.started),
+            "tables_open": len(self),
+            "players_connected": sum(
+                p.connection is not None for table in self for p in table.players.values()
+            ),
+            **{name: self.counts[name] for name in COUNTED},
+        }
 
     def tick(self) -> list[Table]:
         """Let every table act on absent players. Returns those that changed."""

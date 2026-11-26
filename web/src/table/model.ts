@@ -43,7 +43,7 @@ export function players(table: State) {
 export function hint(table: State, mode: Mode, held = false): string {
   if (mode === "switch") return "Tap a number to switch its Place bet on or off";
   if (mode === "take") return "Tap a bet to take chips off it";
-  if (table.bankroll < 5 && table.can_refill) return "Low on chips? Refill from the top button";
+  if (table.low_on_chips) return "Low on chips. A refill is free";
   const { me, shooter } = players(table);
   if (shooter && me && shooter.seat !== me.seat) return `Tap to bet. ${shooter.name} is shooting`;
   if (held) return "Bets are going down…";

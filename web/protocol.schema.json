@@ -449,6 +449,9 @@
         "table": {
           "type": "string"
         },
+        "ref": {
+          "type": "string"
+        },
         "you": {
           "type": "string"
         },
@@ -504,6 +507,9 @@
         "can_refill": {
           "type": "boolean"
         },
+        "low_on_chips": {
+          "type": "boolean"
+        },
         "can_pass": {
           "type": "boolean"
         },
@@ -551,6 +557,7 @@
         "v",
         "token",
         "table",
+        "ref",
         "you",
         "notice",
         "ack",
@@ -560,6 +567,7 @@
         "roll_blocked",
         "wait_ms",
         "can_refill",
+        "low_on_chips",
         "can_pass",
         "leave_blocked",
         "players",
